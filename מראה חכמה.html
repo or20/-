@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>מראה חכמה</title>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+        }
+        .clock, .weather, .news, .tasks, .calendar, .animations {
+            margin-top: 20px;
+            font-size: 1.5em;
+        }
+        .section {
+            margin: 20px;
+            padding: 10px;
+            border: 1px solid white;
+            border-radius: 10px;
+        }
+        .circle {
+            border: 5px solid rgba(0, 255, 255, 0.5);
+            border-radius: 50%;
+            width: 150px;
+            height: 150px;
+            margin: 20px auto;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="section">
+        <div class="clock" id="clock">טוען שעון...</div>
+    </div>
+    <div class="section">
+        <div class="weather" id="weather">טוען מזג אוויר...</div>
+        <div class="forecast" id="forecast">טוען תחזית...</div>
+    </div>
+    <div class="section">
+        <div class="news" id="news">טוען חדשות...</div>
+    </div>
+    <div class="section">
+        <div class="tasks" id="tasks">רשימת מטלות...</div>
+    </div>
+    <div class="section">
+        <div class="calendar" id="calendar">טוען אירועי לוח שנה...</div>
+    </div>
+    <div class="section animations" id="animations">
+        <div class="circle"></div>
+    </div>
+
+    <script>
+        // Update Clock
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent = now.toLocaleTimeString('he-IL', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+        setInterval(updateClock, 1000);
+
+        // Fetch Weather Data (Current and Forecast)
+        fetch('https://api.open-meteo.com/v1/forecast?latitude=32.0853&longitude=34.7818&current_weather=true&daily=temperature_2m_max,temperature_2m_min&timezone=Asia/Jerusalem')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('weather').textContent = `מזג אוויר נוכחי: ${data.current_weather.temperature}°C`;
+                const forecast = data.daily.temperature_2m_max.map((temp, i) => `יום ${i + 1}: ${temp}°C`).join('<br>');
+                document.getElementById('forecast').innerHTML = `<b>תחזית שבועית:</b><br>${forecast}`;
+            })
+            .catch(error => {
+                document.getElementById('weather').textContent = "שגיאה בטעינת מזג האוויר";
+                document.getElementById('forecast').textContent = "שגיאה בטעינת תחזית";
+            });
+
+        // Fetch RSS News Feeds
+        fetch('https://api.rss2json.com/v1/api.json?rss_url=https://www.ynet.co.il/Integration/StoryRss1854.xml')
+            .then(response => response.json())
+            .then(data => {
+                const newsItems = data.items.slice(0, 5).map(item => `<li>${item.title}</li>`).join("");
+                document.getElementById('news').innerHTML = `<ul>${newsItems}</ul>`;
+            })
+            .catch(error => {
+                document.getElementById('news').textContent = "שגיאה בטעינת חדשות";
+            });
+
+        // Display Tasks
+        const tasks = ["לנקות את המטבח", "לסיים את העבודה", "לקנות מצרכים"];
+        document.getElementById('tasks').innerHTML = `<ul>${tasks.map(task => `<li>${task}</li>`).join("")}</ul>`;
+
+        // Google Calendar Events
+        fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events?key=YOUR_API_KEY')
+            .then(response => response.json())
+            .then(data => {
+                const events = data.items.slice(0, 5).map(event => `<li>${event.summary} - ${new Date(event.start.dateTime).toLocaleDateString()}</li>`).join("");
+                document.getElementById('calendar').innerHTML = `<ul>${events}</ul>`;
+            })
+            .catch(error => {
+                document.getElementById('calendar').textContent = "שגיאה בטעינת אירועי לוח שנה";
+            });
+
+        // Text-to-Speech
+        function respondWithVoice(text) {
+            const msg = new SpeechSynthesisUtterance();
+            msg.lang = "he-IL";
+            msg.text = text;
+            window.speechSynthesis.speak(msg);
+        }
+
+        // Speech Recognition
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = "he-IL";
+
+        function startListening() {
+            recognition.start();
+            recognition.onstart = () => {
+                console.log("מקשיב לפקודה...");
+            };
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                if (transcript.includes("היי מראה")) {
+                    respondWithVoice("שלום! איך אפשר לעזור לך?");
+                }
+            };
+            recognition.onerror = (error) => {
+                console.error("שגיאה בזיהוי דיבור:", error);
+            };
+        }
+
+        // Animations
+        document.getElementById('animations').classList.add('circle');
+
+        // Start Listening for "היי מראה"
+        document.body.onload = startListening;
+    </script>
+</body>
+</html>
