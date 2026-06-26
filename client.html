@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ערב 10 - אזור לקוח</title>
+<meta name="theme-color" content="#070604">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}body{font-family:Assistant,Arial,sans-serif;background:#070604;color:#fff;min-height:100svh;line-height:1.45}.app{min-height:100svh;background:radial-gradient(circle at 50% -15%,rgba(240,198,107,.25),transparent 43%),linear-gradient(180deg,#080604,#130d05 60%,#060504);padding:26px 18px 34px;display:grid;place-items:center}.card{width:100%;max-width:520px;background:linear-gradient(145deg,rgba(255,255,255,.13),rgba(255,255,255,.04));border:1px solid rgba(244,212,147,.3);border-radius:32px;padding:26px 22px;box-shadow:0 30px 90px rgba(0,0,0,.38)}.badge{display:inline-flex;gap:8px;align-items:center;border:1px solid rgba(244,212,147,.28);background:rgba(255,255,255,.065);border-radius:999px;padding:8px 13px;color:#f4d493;font-size:12px;font-weight:900}.dot{width:7px;height:7px;border-radius:50%;background:#71ee9c;box-shadow:0 0 18px #71ee9c}.hello{font-size:34px;font-weight:900;margin:20px 0 8px}.sub{color:#c8b89f;font-size:16px}.status{margin:22px 0;background:rgba(0,0,0,.25);border:1px solid rgba(244,212,147,.18);border-radius:24px;padding:18px}.row{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid rgba(244,212,147,.12)}.row:last-child{border-bottom:0}.label{color:#b7a58d}.val{font-weight:900;text-align:left}.gold{color:#f4d493}.actions{display:grid;gap:11px}.btn{border:0;border-radius:18px;padding:17px 14px;font-weight:900;font-size:17px;text-align:center;text-decoration:none;display:block;cursor:pointer}.btn.goldbtn{background:linear-gradient(135deg,#f7d995,#b9822e);color:#130b02}.btn.dark{background:rgba(255,255,255,.08);border:1px solid rgba(244,212,147,.18);color:#fff}.btn.red{background:rgba(255,91,91,.14);color:#ffa0a0;border:1px solid rgba(255,91,91,.22)}textarea{width:100%;display:none;margin:10px 0 0;background:#080604;color:#fff;border:1px solid rgba(244,212,147,.22);border-radius:18px;padding:14px;font:inherit;min-height:90px;outline:0;resize:none}.note{margin-top:16px;color:#968875;font-size:12px;text-align:center}.toast{position:fixed;top:14px;left:14px;right:14px;max-width:520px;margin:auto;background:#f4d493;color:#130b02;border-radius:18px;padding:13px 16px;font-weight:900;text-align:center;display:none}.closed .dot{background:#ff7777;box-shadow:0 0 18px #ff7777}.closed .badge{color:#ffb0b0;border-color:rgba(255,91,91,.28)}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+<main class="app">
+<section class="card" id="card">
+  <div class="badge"><span class="dot"></span><span id="lockText">בודק סטטוס...</span></div>
+  <h1 class="hello">שלום אלעד 👋</h1>
+  <p class="sub">זה האזור האישי שלך ב־ערב 10.</p>
+  <div class="status">
+    <div class="row"><span class="label">סטטוס מנוי</span><span class="val gold">פעיל</span></div>
+    <div class="row"><span class="label">כתובת</span><span class="val">ניב דוד 12</span></div>
+    <div class="row"><span class="label">הערב תקבל</span><span class="val gold">10 לחמניות</span></div>
+    <div class="row"><span class="label">ביטול להיום</span><span class="val" id="cancelUntil">עד 12:00</span></div>
+  </div>
+  <div class="actions">
+    <button class="btn red" onclick="cancelToday()">🟡 היום לא</button>
+    <button class="btn dark" onclick="toggleNote()">📝 עדכן הערה לשליח</button>
+    <textarea id="note" placeholder="לדוגמה: לתלות על הידית / לא לדפוק בדלת"></textarea>
+    <button class="btn goldbtn" id="saveNote" style="display:none" onclick="saveNote()">שמור הערה</button>
+    <a class="btn dark" href="https://wa.me/?text=%D7%94%D7%99%D7%99%2C%20%D7%90%D7%A0%D7%99%20%D7%9C%D7%A7%D7%95%D7%97%20%D7%A9%D7%9C%20%D7%A2%D7%A8%D7%91%2010" target="_blank">💬 צור קשר בוואטסאפ</a>
+  </div>
+  <p class="note">עמוד זה הוא דוגמה לאזור לקוח אישי. בשלב הבא כל לקוח יקבל קישור אישי משלו.</p>
+</section>
+</main>
+<script>
+function locked(){return new Date().getHours()>=12}
+function refresh(){const l=locked();lockText.textContent=l?'ההזמנה להיום נסגרה':'החלוקה הערב פעילה';cancelUntil.textContent=l?'נסגר להיום':'עד 12:00';card.classList.toggle('closed',l)}
+function toast(t){const x=document.getElementById('toast');x.textContent=t;x.style.display='block';setTimeout(()=>x.style.display='none',2400)}
+function cancelToday(){if(locked()){toast('הביטול להיום נסגר. אפשר לבטל החל ממחר.');return}toast('סומן: היום לא תקבל לחמניות')}
+function toggleNote(){const n=document.getElementById('note'),b=document.getElementById('saveNote');const show=n.style.display!=='block';n.style.display=show?'block':'none';b.style.display=show?'block':'none'}
+function saveNote(){toast('ההערה נשמרה');toggleNote()}
+refresh();setInterval(refresh,30000);
+</script>
+</body>
+</html>
