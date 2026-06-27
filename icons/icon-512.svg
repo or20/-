@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#ffe8a6"/>
+      <stop offset="1" stop-color="#bd7c10"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#111006"/>
+  <circle cx="256" cy="256" r="198" fill="none" stroke="url(#g)" stroke-width="18" opacity=".8"/>
+  <text x="256" y="238" text-anchor="middle" font-size="132" font-weight="900" fill="url(#g)" font-family="Arial">10</text>
+  <text x="256" y="338" text-anchor="middle" font-size="92" font-weight="900" fill="#fffaf0" font-family="Arial">ערב</text>
+</svg>
