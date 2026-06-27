@@ -22,7 +22,7 @@
     function addr(c){ return `${c.street || ''} ${c.house || ''}, קומה ${c.floor || '-'}, דירה ${c.apartment || '-'}`; }
     async function load(){
       app.innerHTML = '<section class="screen"><h1 class="top-title">טוען מסלול...</h1></section>';
-      const res = await db.from('customers').select('*').eq('active', true).order('id', { ascending: true });
+      const res = await db.from('customers').select('*').eq('active', true).eq('skip_today', false).order('id', { ascending: true });
       if(res.error){ app.innerHTML = `<section class="screen"><h1 class="top-title">שגיאה</h1><div class="card">${esc(res.error.message)}</div></section>`; return; }
       rows = res.data || [];
       render();
@@ -32,10 +32,10 @@
     function next(){ i++; save(); render(); }
     function reset(){ i = 0; save(); render(); }
     function render(){
-      if(!rows.length){ app.innerHTML = `<section class="screen"><h1 class="top-title">מצב שליח</h1><div class="card"><h2>אין לקוחות פעילים</h2></div><button class="cta secondary" onclick="load()">רענן</button></section>`; return; }
+      if(!rows.length){ app.innerHTML = `<section class="screen"><h1 class="top-title">מצב שליח</h1><div class="card"><h2>אין משלוחים להיום</h2><p class="muted">לקוחות שסימנו היום לא לא מופיעים במסלול.</p></div><button class="cta secondary" onclick="load()">רענן</button></section>`; return; }
       const c = rows[i % rows.length];
       const delivered = rows.filter(x => localStorage.getItem('e10_status_' + x.id) === 'נמסר').length;
-      app.innerHTML = `<section class="screen"><h1 class="top-title">מצב שליח</h1><div class="small-card" style="margin-bottom:16px;font-weight:900">🚚 ${delivered} מתוך ${rows.length} נמסרו</div><div class="card"><div class="badge">${esc(c.subscription_id)}</div><div class="courier-name">${esc(c.name)}</div><div class="courier-address">${esc(addr(c))}</div><div class="divider"></div><p class="muted">קוד כניסה</p><h2>${esc(c.entry_code || 'אין')}</h2><p class="muted">הערה לשליח</p><h2>${esc(c.delivery_note || 'אין הערה')}</h2><div class="action-grid"><button class="cta" onclick="done('נמסר')">נמסר</button><button class="cta secondary" onclick="done('לא בבית')">לא בבית</button><button class="cta secondary" onclick="done('בעיה')">בעיה</button><button class="cta secondary" onclick="next()">הלקוח הבא</button><button class="cta secondary" onclick="reset()">התחל מחדש</button><button class="cta secondary" onclick="load()">רענן מהשרת</button></div></div><div class="muted" style="font-size:12px;text-align:center;margin-top:18px">גרסה 0.8 · מחובר ל-Supabase</div></section>`;
+      app.innerHTML = `<section class="screen"><h1 class="top-title">מצב שליח</h1><div class="small-card" style="margin-bottom:16px;font-weight:900">🚚 ${delivered} מתוך ${rows.length} נמסרו</div><div class="card"><div class="badge">${esc(c.subscription_id)}</div><div class="courier-name">${esc(c.name)}</div><div class="courier-address">${esc(addr(c))}</div><div class="divider"></div><p class="muted">קוד כניסה</p><h2>${esc(c.entry_code || 'אין')}</h2><p class="muted">הערה לשליח</p><h2>${esc(c.delivery_note || 'אין הערה')}</h2><div class="action-grid"><button class="cta" onclick="done('נמסר')">נמסר</button><button class="cta secondary" onclick="done('לא בבית')">לא בבית</button><button class="cta secondary" onclick="done('בעיה')">בעיה</button><button class="cta secondary" onclick="next()">הלקוח הבא</button><button class="cta secondary" onclick="reset()">התחל מחדש</button><button class="cta secondary" onclick="load()">רענן מהשרת</button></div></div><div class="muted" style="font-size:12px;text-align:center;margin-top:18px">גרסה 0.9 · ללא ביטולים</div></section>`;
     }
     load();
   </script>
