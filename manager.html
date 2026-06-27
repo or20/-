@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#111006" />
+  <title>ערב 10 מנהל</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <section class="screen">
+      <h1 class="top-title">ניהול ערב 10</h1>
+      <div class="small-card" style="margin-bottom:16px;font-weight:900">🔴 מסך מנהל נקי</div>
+      <div class="stats">
+        <div class="stat"><span>פעילים</span><strong>3</strong></div>
+        <div class="stat"><span>המתנה</span><strong>0</strong></div>
+        <div class="stat"><span>לא שילמו</span><strong>1</strong></div>
+        <div class="stat"><span>לחמניות</span><strong>30</strong></div>
+      </div>
+      <button class="cta" onclick="alert('שלום, להערב צריך להכין 30 לחמניות עבור ערב 10.')">הכן הודעה למאפייה</button>
+      <button class="cta secondary" onclick="alert('כאן נבנה את ניהול הלקוחות הבא')">➕ הוסף לקוח</button>
+      <button class="cta secondary" onclick="location.href='./courier.html'">פתח שליח</button>
+      <button class="cta secondary" onclick="location.href='./client.html'">פתח לקוח</button>
+      <h2 class="section-title">לקוחות</h2>
+      <div class="grid">
+        <div class="small-card"><b>משפחת כהן</b><br><span class="muted">E10-0001 · ניב דוד 12</span></div>
+        <div class="small-card"><b>משפחת לוי</b><br><span class="muted">E10-0002 · ניב דוד 18</span></div>
+        <div class="small-card"><b>משפחת מזרחי</b><br><span class="muted">E10-0003 · לא שולם</span></div>
+      </div>
+      <div class="muted" style="font-size:12px;text-align:center;margin-top:18px">מנהל נקי · לא מושפע מהתחברות לקוח</div>
+    </section>
+  </main>
+</body>
+</html>
