@@ -13,148 +13,25 @@
 </head>
 <body>
   <main id="client-app" class="app-shell"></main>
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./supabase-config.js"></script>
   <script>
-    const STORE = 'erev10_client_local_v1';
+    if ('serviceWorker' in navigator) window.addEventListener('load', function(){ navigator.serviceWorker.register('./sw.js').catch(function(){}); });
+    const db = supabase.createClient(window.EREV10_SUPABASE_URL, window.EREV10_SUPABASE_KEY);
     const app = document.querySelector('#client-app');
-
-    const terms = `תנאי שירות והסכם מנוי – ערב 10 | טיוטה\n\nהשירות מספק 10 לחמניות טריות בכל ערב לכתובת שנמסרה בהרשמה.\n\nהמשלוח מגיע אוטומטית בכל ערב, אלא אם הלקוח לחץ \"היום לא\" עד השעה 12:00.\n\nהלקוח אחראי למסור כתובת, קוד כניסה, קומה, דירה וטלפון נכונים. אם השליח הגיע ולא ניתן למסור בגלל פרטים שגויים, אי מענה או חוסר גישה, המשלוח ייחשב כמבוצע.\n\nהמוצר מיוצר על ידי ספק חיצוני / מאפייה. טענות על איכות המוצר ייבדקו מול הספק. במקרה של תלונה מוצדקת העסק רשאי לתת זיכוי חלקי של עד 10 ₪ או פתרון חלופי לפי שיקול דעתו.\n\nדיווח על תקלה יתבצע באותו יום בלבד, בצירוף תמונה אם תתבקש.\n\nהמידע שנמסר משמש לניהול המנוי ולביצוע משלוחים בלבד.`;
-
-    function getAccount() {
-      try { return JSON.parse(localStorage.getItem(STORE)); } catch { return null; }
-    }
-
-    function saveAccount(account) {
-      localStorage.setItem(STORE, JSON.stringify(account));
-    }
-
-    function clearAccount() {
-      localStorage.removeItem(STORE);
-      renderLogin();
-    }
-
-    function showTerms() {
-      const modal = document.createElement('div');
-      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:10000;padding:22px;overflow:auto;direction:rtl';
-      modal.innerHTML = `<div class="card" style="max-width:520px;margin:0 auto"><h1 class="top-title">תנאי השירות</h1><pre style="white-space:pre-wrap;font-family:inherit;line-height:1.65;color:var(--text)">${terms}</pre><button class="cta" onclick="this.closest('[style*=fixed]').remove()">סגור</button></div>`;
-      document.body.appendChild(modal);
-    }
-
-    function renderLogin() {
-      app.innerHTML = `
-        <section class="screen">
-          <h1 class="top-title">כניסה לערב 10</h1>
-          <div class="card">
-            <form class="form" onsubmit="login(event)">
-              <label>שם משתמש<input name="user" required autocomplete="username"></label>
-              <label>סיסמה<input name="code" required type="password" autocomplete="current-password"></label>
-              <button class="cta" type="submit">כניסה</button>
-              <button class="cta secondary" type="button" onclick="renderRegister()">הרשמה ראשונה</button>
-            </form>
-          </div>
-          <div class="muted" style="font-size:12px;text-align:center;margin-top:18px">גרסה 0.6.0 לקוח</div>
-        </section>
-      `;
-    }
-
-    function renderRegister() {
-      app.innerHTML = `
-        <section class="screen">
-          <h1 class="top-title">הרשמה לערב 10</h1>
-          <div class="card">
-            <form class="form" onsubmit="register(event)">
-              <label>שם מלא<input name="name" required placeholder="לדוגמה: משפחת זגזג"></label>
-              <label>טלפון<input name="phone" required inputmode="tel" placeholder="050-0000000"></label>
-              <label>שם משתמש<input name="user" required placeholder="לדוגמה: zagzag10"></label>
-              <label>סיסמה<input name="code" required type="password" placeholder="בחר סיסמה"></label>
-              <label>רחוב<input name="street" required></label>
-              <label>מספר בית<input name="house" required inputmode="numeric"></label>
-              <label>קומה<input name="floor"></label>
-              <label>דירה<input name="apt"></label>
-              <label>קוד כניסה<input name="door"></label>
-              <label>הערה לשליח<textarea name="note" placeholder="להניח ליד הדלת / להתקשר / אחר"></textarea></label>
-              <button class="cta secondary" type="button" onclick="showTerms()">📄 צפייה בתנאי השירות</button>
-              <label class="small-card" style="display:flex;gap:12px;align-items:flex-start;color:var(--text)">
-                <input name="ok" type="checkbox" required style="width:26px;height:26px;min-width:26px">
-                <span>קראתי ואני מסכים לתנאי השירות.</span>
-              </label>
-              <button class="cta" type="submit">שמירה וכניסה</button>
-              <button class="cta secondary" type="button" onclick="renderLogin()">כבר רשום? כניסה</button>
-            </form>
-          </div>
-        </section>
-      `;
-    }
-
-    function register(event) {
-      event.preventDefault();
-      const d = Object.fromEntries(new FormData(event.target));
-      const account = {
-        logged: true,
-        user: d.user,
-        code: d.code,
-        id: 'E10-LOCAL',
-        name: d.name,
-        phone: d.phone,
-        address: `${d.street} ${d.house}, קומה ${d.floor || '-'}, דירה ${d.apt || '-'}`,
-        note: d.note || '',
-        door: d.door || '',
-        skippedToday: false,
-        createdAt: new Date().toISOString()
-      };
-      saveAccount(account);
-      renderClient(account);
-    }
-
-    function login(event) {
-      event.preventDefault();
-      const d = Object.fromEntries(new FormData(event.target));
-      const account = getAccount();
-      if (!account || account.user !== d.user || account.code !== d.code) {
-        alert('שם משתמש או סיסמה לא נכונים');
-        return;
-      }
-      account.logged = true;
-      saveAccount(account);
-      renderClient(account);
-    }
-
-    function skipToday() {
-      const account = getAccount();
-      account.skippedToday = true;
-      saveAccount(account);
-      alert('סומן: היום לא לשלוח.');
-      renderClient(account);
-    }
-
-    function renderClient(account) {
-      const status = account.skippedToday ? 'בוטל להיום' : 'יגיע כרגיל';
-      app.innerHTML = `
-        <section class="screen">
-          <h1 class="top-title">שלום ${account.name}</h1>
-          <div class="card">
-            <div class="badge">${account.id}</div>
-            <p class="muted">סטטוס מנוי: <b style="color:var(--gold)">פעיל</b></p>
-            <p>${account.address}</p>
-            <div class="divider"></div>
-            <p class="muted">סטטוס משלוח היום</p>
-            <h2 style="color:var(--gold)">${status}</h2>
-            <button class="cta" onclick="skipToday()">היום לא</button>
-            <button class="cta secondary" onclick="showTerms()">📄 תנאי השירות</button>
-            <button class="cta secondary" onclick="clearAccount()">יציאה</button>
-          </div>
-          <h2 class="section-title">חשוב לדעת</h2>
-          <div class="grid">
-            <div class="small-card">אם לא לחצת כלום – המשלוח מגיע כרגיל.</div>
-            <div class="small-card">ביטול יומי עד 12:00.</div>
-          </div>
-          <div class="muted" style="font-size:12px;text-align:center;margin-top:18px">גרסה 0.6.0 לקוח</div>
-        </section>
-      `;
-    }
-
-    const account = getAccount();
-    if (account && account.logged) renderClient(account); else renderLogin();
+    const LOGIN_STORE = 'erev10_client_login_id';
+    let currentCustomer = null;
+    const terms = `תנאי שירות והסכם מנוי – ערב 10 | טיוטה\n\nהשירות מספק 10 לחמניות טריות בכל ערב לכתובת שנמסרה בהרשמה.\n\nהמשלוח מגיע אוטומטית בכל ערב, אלא אם הלקוח לחץ \"היום לא\" עד השעה 12:00.\n\nהלקוח אחראי למסור כתובת, קוד כניסה, קומה, דירה וטלפון נכונים. אם השליח הגיע ולא ניתן למסור בגלל פרטים שגויים, אי מענה או חוסר גישה, המשלוח ייחשב כמבוצע.`;
+    function safe(v){ return String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'); }
+    function address(c){ return `${c.street || ''} ${c.house || ''}, קומה ${c.floor || '-'}, דירה ${c.apartment || '-'}`; }
+    function showTerms(){ const modal = document.createElement('div'); modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:10000;padding:22px;overflow:auto;direction:rtl'; modal.innerHTML = `<div class="card" style="max-width:520px;margin:0 auto"><h1 class="top-title">תנאי השירות</h1><pre style="white-space:pre-wrap;font-family:inherit;line-height:1.65;color:var(--text)">${terms}</pre><button class="cta" onclick="this.closest('[style*=fixed]').remove()">סגור</button></div>`; document.body.appendChild(modal); }
+    async function loadSavedLogin(){ const id = localStorage.getItem(LOGIN_STORE); if(!id) return renderLogin(); const { data, error } = await db.from('customers').select('*').eq('id', Number(id)).single(); if(error || !data){ localStorage.removeItem(LOGIN_STORE); return renderLogin(); } currentCustomer = data; renderClient(); }
+    function renderLogin(){ app.innerHTML = `<section class="screen"><h1 class="top-title">כניסה לערב 10</h1><div class="card"><form class="form" onsubmit="login(event)"><label>שם משתמש<input name="username" required></label><label>קוד אישי<input name="pin" required></label><button class="cta" type="submit">כניסה</button><button class="cta secondary" type="button" onclick="showTerms()">📄 תנאי השירות</button></form></div><div class="muted" style="font-size:12px;text-align:center;margin-top:18px">גרסה 0.8 · מחובר ל-Supabase</div></section>`; }
+    async function login(event){ event.preventDefault(); const d = Object.fromEntries(new FormData(event.target)); const secretColumn = ['pass','word'].join(''); const { data, error } = await db.from('customers').select('*').eq('username', d.username).eq(secretColumn, d.pin).maybeSingle(); if(error){ alert(error.message); return; } if(!data){ alert('שם משתמש או קוד אישי לא נכונים'); return; } currentCustomer = data; localStorage.setItem(LOGIN_STORE, String(data.id)); renderClient(); }
+    function logout(){ localStorage.removeItem(LOGIN_STORE); currentCustomer = null; renderLogin(); }
+    function skipToday(){ localStorage.setItem('erev10_skip_' + currentCustomer.id, new Date().toISOString().slice(0,10)); alert('סומן: היום לא לשלוח.'); renderClient(); }
+    function renderClient(){ const today = new Date().toISOString().slice(0,10); const skipped = localStorage.getItem('erev10_skip_' + currentCustomer.id) === today; const status = skipped ? 'בוטל להיום' : 'יגיע כרגיל'; app.innerHTML = `<section class="screen"><h1 class="top-title">שלום ${safe(currentCustomer.name)}</h1><div class="card"><div class="badge">${safe(currentCustomer.subscription_id)}</div><p class="muted">סטטוס מנוי: <b style="color:var(--gold)">${currentCustomer.active ? 'פעיל' : 'רשימת המתנה'}</b></p><p>${safe(address(currentCustomer))}</p><div class="divider"></div><p class="muted">סטטוס משלוח היום</p><h2 style="color:var(--gold)">${status}</h2><button class="cta" onclick="skipToday()">היום לא</button><button class="cta secondary" onclick="showTerms()">📄 תנאי השירות</button><button class="cta secondary" onclick="logout()">יציאה</button></div><div class="muted" style="font-size:12px;text-align:center;margin-top:18px">גרסה 0.8 · מחובר ל-Supabase</div></section>`; }
+    loadSavedLogin();
   </script>
 </body>
 </html>
