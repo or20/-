@@ -12,29 +12,232 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <main class="app-shell">
-    <section class="screen">
-      <h1 class="top-title">ניהול ערב 10</h1>
-      <div class="small-card" style="margin-bottom:16px;font-weight:900">🔴 מסך מנהל נקי</div>
-      <div class="stats">
-        <div class="stat"><span>פעילים</span><strong>3</strong></div>
-        <div class="stat"><span>המתנה</span><strong>0</strong></div>
-        <div class="stat"><span>לא שילמו</span><strong>1</strong></div>
-        <div class="stat"><span>לחמניות</span><strong>30</strong></div>
-      </div>
-      <button class="cta" onclick="alert('שלום, להערב צריך להכין 30 לחמניות עבור ערב 10.')">הכן הודעה למאפייה</button>
-      <button class="cta secondary" onclick="alert('כאן נבנה את ניהול הלקוחות הבא')">➕ הוסף לקוח</button>
-      <button class="cta secondary" onclick="location.href='./courier.html'">פתח שליח</button>
-      <button class="cta secondary" onclick="location.href='./client.html'">פתח לקוח</button>
-      <h2 class="section-title">לקוחות</h2>
-      <div class="grid">
-        <div class="small-card"><b>משפחת כהן</b><br><span class="muted">E10-0001 · ניב דוד 12</span></div>
-        <div class="small-card"><b>משפחת לוי</b><br><span class="muted">E10-0002 · ניב דוד 18</span></div>
-        <div class="small-card"><b>משפחת מזרחי</b><br><span class="muted">E10-0003 · לא שולם</span></div>
-      </div>
-      <div class="muted" style="font-size:12px;text-align:center;margin-top:18px">מנהל נקי · PWA תקין</div>
-    </section>
-  </main>
-  <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(function(){});}</script>
+  <main id="manager-app" class="app-shell"></main>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').catch(function () {});
+      });
+    }
+
+    const STORE = 'erev10_manager_customers_v1';
+    const app = document.querySelector('#manager-app');
+
+    function today() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function starterCustomers() {
+      return [
+        { id: 'E10-0001', name: 'משפחת כהן', phone: '050-0000001', username: 'cohen', password: '1234', street: 'ניב דוד', house: '12', floor: '3', apartment: '8', code: '', note: 'להניח ליד הדלת', adminNote: '', paid: true, active: true, createdAt: today() },
+        { id: 'E10-0002', name: 'משפחת לוי', phone: '050-0000002', username: 'levi', password: '1234', street: 'ניב דוד', house: '18', floor: '2', apartment: '4', code: '1234', note: 'קוד 1234', adminNote: '', paid: true, active: true, createdAt: today() },
+        { id: 'E10-0003', name: 'משפחת מזרחי', phone: '050-0000003', username: 'mizrahi', password: '1234', street: 'ניב דוד', house: '4', floor: '1', apartment: '3', code: '', note: 'להתקשר לפני', adminNote: 'חייב 25 ₪', paid: false, active: true, createdAt: today() }
+      ];
+    }
+
+    function loadCustomers() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORE));
+        return Array.isArray(saved) ? saved : starterCustomers();
+      } catch {
+        return starterCustomers();
+      }
+    }
+
+    function saveCustomers() {
+      localStorage.setItem(STORE, JSON.stringify(customers));
+    }
+
+    let customers = loadCustomers();
+
+    function nextId() {
+      const max = customers.reduce((m, c) => Math.max(m, Number(String(c.id).replace('E10-', '')) || 0), 0);
+      return 'E10-' + String(max + 1).padStart(4, '0');
+    }
+
+    function address(c) {
+      return `${c.street || ''} ${c.house || ''}, קומה ${c.floor || '-'}, דירה ${c.apartment || '-'}`;
+    }
+
+    function activeCustomers() {
+      return customers.filter(c => c.active);
+    }
+
+    function waitingCustomers() {
+      return customers.filter(c => !c.active);
+    }
+
+    function unpaidCustomers() {
+      return activeCustomers().filter(c => !c.paid);
+    }
+
+    function bunsToOrder() {
+      return activeCustomers().length * 10;
+    }
+
+    function customerLink(c) {
+      return `${location.origin}${location.pathname.replace('manager.html', 'client.html')}`;
+    }
+
+    function copy(text, message) {
+      navigator.clipboard?.writeText(text);
+      alert(message);
+    }
+
+    function render() {
+      const unpaid = unpaidCustomers().length;
+      const status = unpaid > 0 ? `🟠 ${unpaid} לקוחות לא שילמו` : '🟢 המערכת מוכנה לערב';
+
+      app.innerHTML = `
+        <section class="screen">
+          <h1 class="top-title">ניהול ערב 10</h1>
+          <div class="small-card" style="margin-bottom:16px;font-weight:900">${status}</div>
+          <div class="stats">
+            <div class="stat"><span>פעילים</span><strong>${activeCustomers().length}</strong></div>
+            <div class="stat"><span>המתנה</span><strong>${waitingCustomers().length}</strong></div>
+            <div class="stat"><span>לא שילמו</span><strong>${unpaid}</strong></div>
+            <div class="stat"><span>לחמניות</span><strong>${bunsToOrder()}</strong></div>
+          </div>
+          <button class="cta" onclick="bakeryMessage()">הכן הודעה למאפייה</button>
+          <button class="cta secondary" onclick="openForm()">➕ הוסף לקוח</button>
+          <button class="cta secondary" onclick="location.href='./courier.html'">פתח שליח</button>
+          <button class="cta secondary" onclick="location.href='./client.html'">פתח לקוח</button>
+
+          <h2 class="section-title">לקוחות</h2>
+          <input placeholder="חיפוש לקוח" oninput="filterCustomers(this.value)">
+          <div id="customers-list" class="grid" style="margin-top:16px"></div>
+          <div class="muted" style="font-size:12px;text-align:center;margin-top:18px">גרסה מנהל 0.7 · ניהול לקוחות אמיתי</div>
+        </section>
+      `;
+
+      filterCustomers('');
+    }
+
+    function filterCustomers(search) {
+      const list = document.querySelector('#customers-list');
+      const q = String(search || '').trim();
+      const rows = customers.filter(c =>
+        c.name.includes(q) || c.phone.includes(q) || c.id.includes(q) || address(c).includes(q) || String(c.username).includes(q)
+      );
+
+      list.innerHTML = rows.map(c => `
+        <div class="small-card">
+          <div class="client-row">
+            <div>
+              <b>${c.name}</b><br>
+              <span class="muted">${c.id} · ${address(c)}</span><br>
+              <span class="muted">משתמש: ${c.username || '-'} · הצטרף: ${c.createdAt || '-'}</span>
+              ${c.adminNote ? `<br><span style="color:var(--gold)">הערת מנהל: ${c.adminNote}</span>` : ''}
+            </div>
+            <span class="status ${c.active ? (c.paid ? 'ok' : 'bad') : 'wait'}">${c.active ? (c.paid ? 'שולם' : 'לא שולם') : 'המתנה'}</span>
+          </div>
+          <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:12px">
+            <button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="openForm('${c.id}')">ערוך</button>
+            <button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="togglePaid('${c.id}')">${c.paid ? 'לא שולם' : 'שולם'}</button>
+            <button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="toggleActive('${c.id}')">${c.active ? 'המתנה' : 'הפעל'}</button>
+            <button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="copy('${customerLink(c)}','קישור לקוח הועתק')">קישור</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function fields(c = {}) {
+      return `
+        <label>שם מלא<input name="name" required value="${c.name || ''}"></label>
+        <label>טלפון<input name="phone" required inputmode="tel" value="${c.phone || ''}"></label>
+        <label>שם משתמש<input name="username" required value="${c.username || ''}"></label>
+        <label>סיסמה<input name="password" required value="${c.password || ''}"></label>
+        <label>רחוב<input name="street" required value="${c.street || ''}"></label>
+        <label>מספר בית<input name="house" required value="${c.house || ''}"></label>
+        <label>קומה<input name="floor" value="${c.floor || ''}"></label>
+        <label>דירה<input name="apartment" value="${c.apartment || ''}"></label>
+        <label>קוד כניסה<input name="code" value="${c.code || ''}"></label>
+        <label>הערה לשליח<textarea name="note">${c.note || ''}</textarea></label>
+        <label>הערת מנהל<textarea name="adminNote">${c.adminNote || ''}</textarea></label>
+      `;
+    }
+
+    function openForm(id = '') {
+      const c = customers.find(x => x.id === id);
+      const modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:10000;padding:22px;overflow:auto;direction:rtl';
+      modal.innerHTML = `
+        <div class="card" style="max-width:520px;margin:0 auto">
+          <h1 class="top-title">${c ? 'עריכת לקוח' : 'הוספת לקוח'}</h1>
+          <form class="form" onsubmit="saveForm(event,'${id}')">
+            ${fields(c || {})}
+            <label class="small-card" style="display:flex;gap:12px;align-items:center;color:var(--text)">
+              <input type="checkbox" name="paid" ${c?.paid ? 'checked' : ''} style="width:26px;height:26px;min-width:26px"> שולם
+            </label>
+            <label class="small-card" style="display:flex;gap:12px;align-items:center;color:var(--text)">
+              <input type="checkbox" name="active" ${c ? (c.active ? 'checked' : '') : 'checked'} style="width:26px;height:26px;min-width:26px"> מנוי פעיל
+            </label>
+            <button class="cta" type="submit">שמור</button>
+            ${c ? `<button class="cta secondary" type="button" onclick="deleteCustomer('${c.id}')">מחק לקוח</button>` : ''}
+            <button class="cta secondary" type="button" onclick="this.closest('[style*=fixed]').remove()">סגור</button>
+          </form>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    function saveForm(event, id) {
+      event.preventDefault();
+      const d = Object.fromEntries(new FormData(event.target));
+
+      if (customers.some(c => c.id !== id && c.username === d.username)) {
+        alert('שם המשתמש כבר קיים');
+        return;
+      }
+
+      if (id) {
+        const c = customers.find(x => x.id === id);
+        Object.assign(c, d, { paid: !!d.paid, active: !!d.active });
+      } else {
+        customers.push({
+          id: nextId(),
+          createdAt: today(),
+          ...d,
+          paid: !!d.paid,
+          active: !!d.active
+        });
+      }
+
+      saveCustomers();
+      document.querySelector('[style*=fixed]')?.remove();
+      render();
+    }
+
+    function deleteCustomer(id) {
+      if (!confirm('למחוק את הלקוח?')) return;
+      customers = customers.filter(c => c.id !== id);
+      saveCustomers();
+      document.querySelector('[style*=fixed]')?.remove();
+      render();
+    }
+
+    function togglePaid(id) {
+      const c = customers.find(x => x.id === id);
+      c.paid = !c.paid;
+      saveCustomers();
+      render();
+    }
+
+    function toggleActive(id) {
+      const c = customers.find(x => x.id === id);
+      c.active = !c.active;
+      saveCustomers();
+      render();
+    }
+
+    function bakeryMessage() {
+      const msg = `שלום, להערב צריך להכין ${bunsToOrder()} לחמניות עבור ערב 10.\nלקוחות פעילים: ${activeCustomers().length}\nלא שילמו: ${unpaidCustomers().length}`;
+      navigator.clipboard?.writeText(msg);
+      alert(msg + '\n\nההודעה הועתקה.');
+    }
+
+    render();
+  </script>
 </body>
 </html>
