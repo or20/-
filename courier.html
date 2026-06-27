@@ -12,14 +12,72 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <main id="app" class="app-shell"></main>
-  <nav class="bottom-nav" aria-label="ניווט ראשי">
-    <button data-route="home" class="nav-item">בית</button>
-    <button data-route="signup" class="nav-item">הרשמה</button>
-    <button data-route="customer" class="nav-item">לקוח</button>
-    <button data-route="admin" class="nav-item">ניהול</button>
-    <button data-route="courier" class="nav-item active">שליח</button>
-  </nav>
-  <script src="./app.js"></script>
+  <main id="courier-app" class="app-shell"></main>
+  <script>
+    const clients = [
+      { id: 'E10-0001', name: 'משפחת כהן', phone: '050-0000001', address: 'ניב דוד 12, קומה 3, דירה 8', code: 'אין', note: 'להניח ליד הדלת' },
+      { id: 'E10-0002', name: 'משפחת לוי', phone: '050-0000002', address: 'ניב דוד 18, קומה 2, דירה 4', code: '1234', note: 'קוד 1234' },
+      { id: 'E10-0003', name: 'משפחת מזרחי', phone: '050-0000003', address: 'ניב דוד 4, קומה 1, דירה 3', code: 'אין', note: 'להתקשר לפני' }
+    ];
+
+    let index = Number(localStorage.getItem('erev10_courier_index') || 0);
+    const app = document.querySelector('#courier-app');
+
+    function save() {
+      localStorage.setItem('erev10_courier_index', String(index));
+    }
+
+    function mark(status) {
+      const c = clients[index % clients.length];
+      localStorage.setItem('erev10_delivery_' + c.id, status);
+      index += 1;
+      save();
+      render();
+    }
+
+    function nextClient() {
+      index += 1;
+      save();
+      render();
+    }
+
+    function resetRoute() {
+      index = 0;
+      save();
+      render();
+    }
+
+    function render() {
+      const c = clients[index % clients.length];
+      const delivered = clients.filter(x => localStorage.getItem('erev10_delivery_' + x.id) === 'נמסר').length;
+      app.innerHTML = `
+        <section class="screen">
+          <h1 class="top-title">מצב שליח</h1>
+          <div class="small-card" style="margin-bottom:16px;font-weight:900">🚚 ${delivered} מתוך ${clients.length} נמסרו</div>
+          <div class="card">
+            <div class="badge">${c.id}</div>
+            <div class="courier-name">${c.name}</div>
+            <div class="courier-address">${c.address}</div>
+            <div class="divider"></div>
+            <p class="muted">קוד כניסה</p>
+            <h2>${c.code}</h2>
+            <p class="muted">הערה לשליח</p>
+            <h2>${c.note}</h2>
+            <div class="action-grid">
+              <button class="cta" onclick="mark('נמסר')">נמסר</button>
+              <button class="cta secondary" onclick="location.href='tel:${c.phone}'">חייג ללקוח</button>
+              <button class="cta secondary" onclick="mark('לא בבית')">לא בבית</button>
+              <button class="cta secondary" onclick="mark('בעיה')">בעיה</button>
+              <button class="cta secondary" onclick="nextClient()">הלקוח הבא</button>
+              <button class="cta secondary" onclick="resetRoute()">התחל מסלול מחדש</button>
+            </div>
+          </div>
+          <div class="muted" style="font-size:12px;text-align:center;margin-top:18px">שליח נקי · לא קשור לאפליקציית לקוח</div>
+        </section>
+      `;
+    }
+
+    render();
+  </script>
 </body>
 </html>
