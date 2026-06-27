@@ -4,7 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#111006" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ערב 10 מנהל" />
   <title>ערב 10 מנהל</title>
+  <link rel="manifest" href="./manifest-manager.webmanifest" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -28,8 +32,9 @@
         <div class="small-card"><b>משפחת לוי</b><br><span class="muted">E10-0002 · ניב דוד 18</span></div>
         <div class="small-card"><b>משפחת מזרחי</b><br><span class="muted">E10-0003 · לא שולם</span></div>
       </div>
-      <div class="muted" style="font-size:12px;text-align:center;margin-top:18px">מנהל נקי · לא מושפע מהתחברות לקוח</div>
+      <div class="muted" style="font-size:12px;text-align:center;margin-top:18px">מנהל נקי · PWA תקין</div>
     </section>
   </main>
+  <script>if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').catch(function(){});}</script>
 </body>
 </html>
