@@ -1,10 +1,16 @@
-const CACHE_NAME = "erev-10-v3";
+const CACHE_NAME = "erev-10-pwa-v7";
 const ASSETS = [
   "./",
   "./index.html",
+  "./manager.html",
+  "./client.html",
+  "./courier.html",
   "./styles.css",
   "./app.js",
   "./manifest.webmanifest",
+  "./manifest-manager.webmanifest",
+  "./manifest-customer.webmanifest",
+  "./manifest-courier.webmanifest",
   "./icons/icon-192.svg",
   "./icons/icon-512.svg"
 ];
@@ -22,13 +28,8 @@ self.addEventListener("activate", event => {
   );
 });
 
-self.addEventListener("message", event => {
-  if (event.data && event.data.type === "SKIP_WAITING") self.skipWaiting();
-});
-
 self.addEventListener("fetch", event => {
   if (event.request.method !== "GET") return;
-
   event.respondWith(
     fetch(event.request)
       .then(response => {
