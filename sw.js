@@ -1,13 +1,14 @@
-const CACHE_NAME = "erev-10-pwa-v7";
+const CACHE_NAME = "erev-10-pwa-v8";
 const ASSETS = [
   "./",
   "./index.html",
+  "./join.html",
+  "./signup.html",
+  "./client-v3.html",
   "./manager.html",
-  "./client.html",
   "./courier.html",
   "./styles.css",
-  "./app.js",
-  "./manifest.webmanifest",
+  "./supabase-config.js",
   "./manifest-manager.webmanifest",
   "./manifest-customer.webmanifest",
   "./manifest-courier.webmanifest",
