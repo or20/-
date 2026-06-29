@@ -62,14 +62,21 @@ function unpaid(){return active().filter(c=>!c.paid)}
 function buns(){return delivery().length*10}
 function expectedIncome(){return delivery().length*25}
 function monthlyIncome(){return active().length*25*26}
-function clientLink(){return location.origin+location.pathname.replace('manager.html','client-v3.html').replace('manager-full-v2.html','client-v3.html')}
+function clientLink(){return location.origin+location.pathname.replace('manager.html','client-v3.html').replace('manager-full-v3.html','client-v3.html')}
 function copy(t,m){navigator.clipboard?.writeText(t);toast('הועתק',m||'')}
-function todayKey(){return 'e10_bakery_'+new Date().toISOString().slice(0,10)}
-function bakeryState(){try{return JSON.parse(localStorage.getItem(todayKey())||'null')}catch(e){return null}}
 function nowMin(){let d=new Date();return d.getHours()*60+d.getMinutes()}
 function countdownTo(minTarget){let n=nowMin(),left=Math.max(0,minTarget-n),h=Math.floor(left/60),m=left%60;if(left<=0)return '';return `${h? h+' שעות ו־':''}${m} דקות`}
 function nextId(){let nums=customers.map(c=>Number(String(c.subscription_id||'').replace('E10-',''))||0).filter(Boolean).sort((a,b)=>a-b);let n=1;for(let x of nums){if(x===n)n++;else if(x>n)break}return 'E10-'+String(n).padStart(4,'0')}
 function toast(t,s){ui.innerHTML=`<div class="toast"><b>${t}</b><p class="muted">${s||''}</p><button class="cta secondary" onclick="ui.innerHTML=''">סגור</button></div>`;setTimeout(()=>ui.innerHTML='',3200)}
+
+function bakeryOrderText(){
+  return `שלום, להערב צריך להכין ${buns()} לחמניות עבור ערב 10.\nלקוחות למשלוח: ${delivery().length}\nלקוחות פעילים: ${active().length}\nביטלו היום: ${skipped().length}\nלא שילמו: ${unpaid().length}`;
+}
+function showBakeryOrder(){
+  let msg=bakeryOrderText();
+  ui.innerHTML=`<div class="toast"><b>מה נשלח למאפייה</b><p class="muted bakery-msg">${safe(msg)}</p><button class="cta" onclick="copyBakeryOrder()">העתק הודעה</button><button class="cta secondary" onclick="ui.innerHTML=''">סגור</button></div>`;
+}
+function copyBakeryOrder(){navigator.clipboard?.writeText(bakeryOrderText());toast('הועתק','ההודעה למאפייה הועתקה.')}
 
 async function load(){
   app.innerHTML='<section class="screen"><h1 class="top-title">טוען לקוחות...</h1></section>';
@@ -117,7 +124,7 @@ function render(){
     </div>
     <div id="customers-list" class="grid" style="margin-top:16px"></div>
     <div class="credit"><a href="https://share.google/HUoheAjuVnUKozsP8">מבית zagzagwebs</a></div>
-    <div class="muted" style="font-size:12px;text-align:center;margin-top:8px">גרסה 2.2 · מנהל מלא</div>
+    <div class="muted" style="font-size:12px;text-align:center;margin-top:8px">גרסה 2.3 · מאפייה אוטומטי</div>
   </section>`;
   filterCustomers('');
   showInstall();
@@ -128,11 +135,17 @@ function filterBtn(k,t){return `<button class="${currentFilter===k?'on':''}" onc
 function setFilter(k){currentFilter=k;render()}
 
 function bakeryCard(){
-  let st=bakeryState(),n=nowMin(),phase='',note='';
-  if(st){phase=`<div class="small-card bakery-state">🔵 נשלח למאפייה · ${safe(st.time)}</div>`;note=`<p class="muted manager-note">ההזמנה כבר סומנה כנשלחה היום.</p>`}
-  else if(n<720){phase=`<div class="small-card bakery-state">🟢 פתוח לשינויים</div>`;note=`<p id="bakeryNote" class="muted manager-note">ניתן לבצע שינויים בהזמנות עד <b>12:00</b>.<br>נותרו ${countdownTo(720)} לשינויים.<br>בשעה <b>13:00</b> ההזמנה תישלח למאפייה.</p>`}
-  else if(n<780){phase=`<div class="small-card bakery-state">🟠 ההזמנה נסגרה</div>`;note=`<p id="bakeryNote" class="muted manager-note">השינויים נסגרו ב־<b>12:00</b>.<br>נותרו ${countdownTo(780)} עד שליחה למאפייה ב־<b>13:00</b>.</p>`}
-  else{phase=`<div class="small-card bakery-state">🔴 עדיין לא סומן כנשלח</div>`;note=`<p class="muted manager-note">השעה אחרי 13:00. בדוק ושלח/סמן את ההזמנה למאפייה.</p>`}
+  let n=nowMin(),phase='',note='';
+  if(n<720){
+    phase=`<div class="small-card bakery-state">🟢 פתוח לשינויים</div>`;
+    note=`<p id="bakeryNote" class="muted manager-note">ניתן לבצע שינויים בהזמנות עד <b>12:00</b>.<br>נותרו ${countdownTo(720)} לשינויים.<br>בשעה <b>13:00</b> ההזמנה תישלח אוטומטית למאפייה.</p>`;
+  } else if(n<780){
+    phase=`<div class="small-card bakery-state">🟠 ההזמנה נסגרה</div>`;
+    note=`<p id="bakeryNote" class="muted manager-note">השינויים נסגרו ב־<b>12:00</b>.<br>נותרו ${countdownTo(780)} עד שליחה אוטומטית למאפייה ב־<b>13:00</b>.</p>`;
+  } else {
+    phase=`<div class="small-card bakery-state">🔵 נשלח למאפייה אוטומטית</div>`;
+    note=`<p class="muted manager-note">ההזמנה להיום ננעלה ונשלחה למאפייה אוטומטית בשעה <b>13:00</b>.</p>`;
+  }
   return `<div class="card" style="margin:16px 0">
     <h2 style="color:var(--gold);margin-top:0">🥖 סטטוס מאפייה</h2>
     ${phase}${note}
@@ -140,7 +153,7 @@ function bakeryCard(){
       <div class="stat"><span>לקוחות למשלוח</span><strong>${delivery().length}</strong></div>
       <div class="stat"><span>לחמניות</span><strong>${buns()}</strong></div>
     </div>
-    ${st?`<p class="muted">ההזמנה שנשמרה:</p><div class="small-card bakery-msg">${safe(st.message)}</div><button class="cta secondary" onclick="bakeryMsg()">שלח/שמור מחדש</button>`:`<button class="cta" onclick="bakeryMsg()">שלח / סמן שנשלח למאפייה</button>`}
+    <button class="cta" onclick="showBakeryOrder()">מה נשלח למאפייה</button>
   </div>`
 }
 function startBakeryTimer(){clearInterval(bakeryTimer);bakeryTimer=setInterval(()=>{if(document.getElementById('bakeryNote'))render()},60000)}
@@ -155,18 +168,12 @@ function filteredRows(q){
   if(currentFilter==='unpaid')rows=rows.filter(c=>c.active&&!c.paid);
   return rows;
 }
-
-function filterCustomers(q){
-  let list=document.querySelector('#customers-list');
-  let rows=filteredRows(q);
-  list.innerHTML=rows.map(c=>card(c)).join('')||'<div class="small-card">אין לקוחות להצגה</div>';
-}
+function filterCustomers(q){let list=document.querySelector('#customers-list');let rows=filteredRows(q);list.innerHTML=rows.map(c=>card(c)).join('')||'<div class="small-card">אין לקוחות להצגה</div>'}
 
 function card(c){
   let phone=digits(c.phone),wa=phone?`https://wa.me/972${phone.replace(/^0/,'')}`:'#',waze=`https://waze.com/ul?q=${encodeURIComponent(address(c))}`;
   return `<div class="small-card"><div class="client-row"><div><b>${safe(c.name)}</b><br><span class="muted">${safe(c.subscription_id)} · ${safe(address(c))}</span><br><span class="muted">${safe(c.phone||'')}</span>${c.active===false?'<br><span style="color:#ff9b9b">מנוי עצור</span>':''}</div><span class="status ${c.active===false?'bad':c.skip_today?'wait':c.paid?'ok':'bad'}">${c.active===false?'עצור':c.skip_today?'היום לא':c.paid?'שולם':'לא שולם'}</span></div><div class="grid" style="grid-template-columns:1fr 1fr;margin-top:12px"><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="openForm(${c.id})">ערוך</button><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="togglePaid(${c.id})">${c.paid?'לא שולם':'שולם'}</button><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="toggleSkip(${c.id})">${c.skip_today?'בטל היום לא':'היום לא'}</button><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="copy('${clientLink()}','קישור לקוח הועתק')">קישור</button></div><div class="mini-actions"><a href="tel:${safe(c.phone||'')}">חיוג</a><a href="${wa}" target="_blank">ווטסאפ</a><a href="${waze}" target="_blank">Waze</a><button onclick="copy('${safe(address(c))}','כתובת הועתקה')">העתק כתובת</button></div></div>`
 }
-
 function fields(c={}){return `<label>שם מלא<input name="name" required value="${safe(c.name)}"></label><label>טלפון<input name="phone" value="${safe(c.phone)}"></label><label>שם משתמש<input name="username" required value="${safe(c.username)}"></label><label>קוד אישי<input name="pin" required value="${safe(c[secretCol])}"></label><label>רחוב<input name="street" value="${safe(c.street)}"></label><label>מספר בית<input name="house" value="${safe(c.house)}"></label><label>קומה<input name="floor" value="${safe(c.floor)}"></label><label>דירה<input name="apartment" value="${safe(c.apartment)}"></label><label>קוד כניסה<input name="entry_code" value="${safe(c.entry_code)}"></label><label>הערה לשליח<textarea name="delivery_note">${safe(c.delivery_note)}</textarea></label><label>הערת מנהל<textarea name="admin_note">${safe(c.admin_note)}</textarea></label>`}
 function openForm(id=''){
   let c=customers.find(x=>x.id===id),m=document.createElement('div');
@@ -189,13 +196,6 @@ async function deleteCustomer(id){if(!confirm('למחוק את הלקוח?'))ret
 async function togglePaid(id){let c=customers.find(x=>x.id===id);await db.from('customers').update({paid:!c.paid}).eq('id',id);await load()}
 async function toggleSkip(id){let c=customers.find(x=>x.id===id);await db.from('customers').update({skip_today:!c.skip_today}).eq('id',id);await load()}
 
-function bakeryMsg(){
-  let msg=`שלום, להערב צריך להכין ${buns()} לחמניות עבור ערב 10.\nלקוחות למשלוח: ${delivery().length}\nלקוחות פעילים: ${active().length}\nביטלו היום: ${skipped().length}\nלא שילמו: ${unpaid().length}`;
-  localStorage.setItem(todayKey(),JSON.stringify({time:new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}),message:msg,customers:delivery().length,buns:buns()}));
-  navigator.clipboard?.writeText(msg);
-  alert(msg+'\n\nההודעה הועתקה והסטטוס נשמר.');
-  render()
-}
 load();
 </script>
 </body>
