@@ -1,13 +1,220 @@
-<!doctype html><html lang="he" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#111006"><title>ערב 10 מנהל</title><link rel="manifest" href="./manifest-manager.webmanifest"><link rel="stylesheet" href="./styles.css"></head><body><main id="manager-app" class="app-shell"></main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="./supabase-config.js"></script><script>
-if(sessionStorage.getItem('e10ok')!=='1'){let c=prompt('קוד כניסה לניהול');if(c!==['1','0','1','0'].join('')){document.querySelector('#manager-app').innerHTML='<section class="screen"><h1 class="top-title">אין גישה</h1><div class="card">קוד לא נכון</div></section>';throw new Error('locked')}sessionStorage.setItem('e10ok','1')}
-if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(function(){});
-const db=supabase.createClient(window.EREV10_SUPABASE_URL,window.EREV10_SUPABASE_KEY),app=document.querySelector('#manager-app');let customers=[];const secretCol=['pass','word'].join('');
-function safe(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')}function address(c){return `${c.street||''} ${c.house||''}, קומה ${c.floor||'-'}, דירה ${c.apartment||'-'}`}function active(){return customers.filter(c=>c.active)}function skipped(){return active().filter(c=>c.skip_today)}function delivery(){return active().filter(c=>!c.skip_today)}function unpaid(){return active().filter(c=>!c.paid)}function buns(){return delivery().length*10}function nextId(){let m=customers.reduce((x,c)=>Math.max(x,Number(String(c.subscription_id||'').replace('E10-',''))||0),0);return'E10-'+String(m+1).padStart(4,'0')}function clientLink(){return location.origin+location.pathname.replace('manager.html','client-v3.html')}function copy(t,m){navigator.clipboard?.writeText(t);alert(m)}
-async function load(){app.innerHTML='<section class="screen"><h1 class="top-title">טוען לקוחות...</h1></section>';let r=await db.from('customers').select('*').order('id',{ascending:true});if(r.error){app.innerHTML=`<section class="screen"><h1 class="top-title">שגיאה</h1><div class="card">${safe(r.error.message)}</div></section>`;return}customers=r.data||[];render()}
-function render(){let u=unpaid().length,s=skipped().length;app.innerHTML=`<section class="screen"><h1 class="top-title">ניהול ערב 10</h1><div class="small-card" style="margin-bottom:16px;font-weight:900">${s?'🟡 '+s+' ביטלו להיום':u?'🟠 '+u+' לא שילמו':'🟢 המערכת מוכנה לערב'}</div><div class="stats"><div class="stat"><span>לקוחות פעילים</span><strong>${active().length}</strong></div><div class="stat"><span>ביטלו היום</span><strong>${s}</strong></div><div class="stat"><span>לא שילמו</span><strong>${u}</strong></div><div class="stat"><span>לחמניות</span><strong>${buns()}</strong></div></div><div class="card" style="margin:16px 0"><h2 style="color:var(--gold);margin-top:0">🥖 סטטוס מאפייה</h2><div class="small-card" style="font-weight:900;margin-bottom:12px">🔴 עדיין לא נשלח</div><p class="muted">לא נשלחה עדיין הזמנה למאפייה להיום.</p><button class="cta" onclick="bakeryMsg()">שלח הזמנה למאפייה</button></div><button class="cta secondary" onclick="openForm()">➕ הוסף לקוח</button><button class="cta secondary" onclick="resetSkips()">איפוס ביטולי היום</button><button class="cta secondary" onclick="location.href='./courier.html'">פתח שליח</button><button class="cta secondary" onclick="location.href='./client-v3.html'">פתח לקוח</button><h2 class="section-title">לקוחות</h2><input placeholder="חיפוש לקוח" oninput="filterCustomers(this.value)"><div id="customers-list" class="grid" style="margin-top:16px"></div><div class="muted" style="font-size:12px;text-align:center;margin-top:18px">גרסה 1.2 · סטטוס מאפייה</div></section>`;filterCustomers('')}
-function filterCustomers(q){let list=document.querySelector('#customers-list');q=String(q||'').trim();let rows=customers.filter(c=>(c.name||'').includes(q)||(c.phone||'').includes(q)||(c.subscription_id||'').includes(q)||address(c).includes(q)||(c.username||'').includes(q));list.innerHTML=rows.map(c=>`<div class="small-card"><div class="client-row"><div><b>${safe(c.name)}</b><br><span class="muted">${safe(c.subscription_id)} · ${safe(address(c))}</span><br><span class="muted">${safe(c.phone||'')}</span>${c.active===false?'<br><span style="color:#ff9b9b">מנוי עצור</span>':''}</div><span class="status ${c.active===false?'bad':c.skip_today?'wait':c.paid?'ok':'bad'}">${c.active===false?'עצור':c.skip_today?'היום לא':c.paid?'שולם':'לא שולם'}</span></div><div class="grid" style="grid-template-columns:1fr 1fr;margin-top:12px"><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="openForm(${c.id})">ערוך</button><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="togglePaid(${c.id})">${c.paid?'לא שולם':'שולם'}</button><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="toggleSkip(${c.id})">${c.skip_today?'בטל היום לא':'היום לא'}</button><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="copy('${clientLink()}','קישור לקוח הועתק')">קישור</button></div></div>`).join('')||'<div class="small-card">אין לקוחות עדיין</div>'}
-function fields(c={}){return`<label>שם מלא<input name="name" required value="${safe(c.name)}"></label><label>טלפון<input name="phone" value="${safe(c.phone)}"></label><label>שם משתמש<input name="username" required value="${safe(c.username)}"></label><label>קוד אישי<input name="pin" required value="${safe(c[secretCol])}"></label><label>רחוב<input name="street" value="${safe(c.street)}"></label><label>מספר בית<input name="house" value="${safe(c.house)}"></label><label>קומה<input name="floor" value="${safe(c.floor)}"></label><label>דירה<input name="apartment" value="${safe(c.apartment)}"></label><label>קוד כניסה<input name="entry_code" value="${safe(c.entry_code)}"></label><label>הערה לשליח<textarea name="delivery_note">${safe(c.delivery_note)}</textarea></label><label>הערת מנהל<textarea name="admin_note">${safe(c.admin_note)}</textarea></label>`}
-function openForm(id=''){let c=customers.find(x=>x.id===id),m=document.createElement('div');m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:10000;padding:22px;overflow:auto;direction:rtl';m.innerHTML=`<div class="card" style="max-width:520px;margin:0 auto"><h1 class="top-title">${c?'עריכת לקוח':'הוספת לקוח'}</h1><form class="form" onsubmit="saveForm(event,'${id}')">${fields(c||{})}<label class="small-card" style="display:flex;gap:12px;align-items:center;color:var(--text)"><input type="checkbox" name="paid" ${c?.paid?'checked':''} style="width:26px;height:26px;min-width:26px"> שולם</label><label class="small-card" style="display:flex;gap:12px;align-items:center;color:var(--text)"><input type="checkbox" name="active" ${c?(c.active?'checked':''):'checked'} style="width:26px;height:26px;min-width:26px"> מנוי פעיל</label><button class="cta" type="submit">שמור</button>${c?`<button class="cta secondary" type="button" onclick="deleteCustomer(${c.id})">מחק לקוח</button>`:''}<button class="cta secondary" type="button" onclick="this.closest('[style*=fixed]').remove()">סגור</button></form></div>`;document.body.appendChild(m)}
-async function saveForm(e,id){e.preventDefault();let d=Object.fromEntries(new FormData(e.target));let row={name:d.name,phone:d.phone,username:d.username,street:d.street,house:d.house,floor:d.floor,apartment:d.apartment,entry_code:d.entry_code,delivery_note:d.delivery_note,admin_note:d.admin_note,paid:!!d.paid,active:!!d.active};row[secretCol]=d.pin;let r;if(id)r=await db.from('customers').update(row).eq('id',Number(id));else{row.subscription_id=nextId();row.skip_today=false;r=await db.from('customers').insert(row)}if(r.error){alert(r.error.message);return}document.querySelector('[style*=fixed]')?.remove();await load()}
-async function deleteCustomer(id){if(!confirm('למחוק את הלקוח?'))return;let r=await db.from('customers').delete().eq('id',id);if(r.error)alert(r.error.message);await load()}async function togglePaid(id){let c=customers.find(x=>x.id===id);await db.from('customers').update({paid:!c.paid}).eq('id',id);await load()}async function toggleSkip(id){let c=customers.find(x=>x.id===id);await db.from('customers').update({skip_today:!c.skip_today}).eq('id',id);await load()}async function resetSkips(){if(!confirm('לאפס את כל ביטולי היום?'))return;await db.from('customers').update({skip_today:false}).eq('skip_today',true);await load()}function bakeryMsg(){let msg=`שלום, להערב צריך להכין ${buns()} לחמניות עבור ערב 10.\nלקוחות פעילים: ${active().length}\nביטלו היום: ${skipped().length}\nלא שילמו: ${unpaid().length}`;navigator.clipboard?.writeText(msg);alert(msg+'\n\nההודעה הועתקה.')}load();
-</script></body></html>
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#111006">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ערב 10 מנהל">
+  <title>ערב 10 מנהל</title>
+  <link rel="manifest" href="./manifest-manager.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    body{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+    input,textarea{user-select:text;-webkit-user-select:text}
+    .credit{text-align:center;margin:22px 0 4px;font-size:12px}
+    .credit a{color:var(--muted);text-decoration:none}
+    .bakery-msg{white-space:pre-line;line-height:1.6}
+    .install-box{display:none;margin:14px 0}
+    .install-box.show{display:block}
+    .toast{position:fixed;left:14px;right:14px;bottom:18px;z-index:9999;max-width:420px;margin:auto;background:rgba(18,14,7,.94);border:1px solid rgba(255,215,120,.32);border-radius:24px;padding:16px;box-shadow:0 24px 80px rgba(0,0,0,.55)}
+    .toast b{display:block;color:var(--gold);font-size:18px;margin-bottom:4px}
+    .bakery-state{font-weight:950;margin-bottom:12px}
+    .manager-note{font-size:14px;line-height:1.55}
+    .danger-mini{background:rgba(255,70,70,.10)!important;color:#ff9b9b!important;border:1px solid rgba(255,70,70,.34)!important;box-shadow:none!important}
+  </style>
+</head>
+<body>
+<main id="manager-app" class="app-shell"></main>
+<div id="ui"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase-config.js"></script>
+<script>
+if(sessionStorage.getItem('e10ok')!=='1'){
+  let c=prompt('קוד כניסה לניהול');
+  if(c!==['1','0','1','0'].join('')){
+    document.querySelector('#manager-app').innerHTML='<section class="screen"><h1 class="top-title">אין גישה</h1><div class="card">קוד לא נכון</div></section>';
+    throw new Error('locked');
+  }
+  sessionStorage.setItem('e10ok','1');
+}
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(function(){});
+let installEvent=null,bakeryTimer=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvent=e;showInstall()});
+
+const db=supabase.createClient(window.EREV10_SUPABASE_URL,window.EREV10_SUPABASE_KEY);
+const app=document.querySelector('#manager-app');
+const ui=document.querySelector('#ui');
+let customers=[];
+const secretCol=['pass','word'].join('');
+
+function safe(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;')}
+function address(c){return `${c.street||''} ${c.house||''}, קומה ${c.floor||'-'}, דירה ${c.apartment||'-'}`}
+function active(){return customers.filter(c=>c.active)}
+function skipped(){return active().filter(c=>c.skip_today)}
+function delivery(){return active().filter(c=>!c.skip_today)}
+function unpaid(){return active().filter(c=>!c.paid)}
+function buns(){return delivery().length*10}
+function clientLink(){return location.origin+location.pathname.replace('manager.html','client-v3.html').replace('manager-full.html','client-v3.html')}
+function copy(t,m){navigator.clipboard?.writeText(t);alert(m)}
+function todayKey(){return 'e10_bakery_'+new Date().toISOString().slice(0,10)}
+function bakeryState(){try{return JSON.parse(localStorage.getItem(todayKey())||'null')}catch(e){return null}}
+function nowMin(){let d=new Date();return d.getHours()*60+d.getMinutes()}
+function countdownTo(minTarget){
+  let n=nowMin(),left=Math.max(0,minTarget-n),h=Math.floor(left/60),m=left%60;
+  if(left<=0)return '';
+  return `${h? h+' שעות ו־':''}${m} דקות`;
+}
+function nextId(){
+  let nums=customers.map(c=>Number(String(c.subscription_id||'').replace('E10-',''))||0).filter(Boolean).sort((a,b)=>a-b);
+  let n=1;
+  for(let x of nums){if(x===n)n++;else if(x>n)break}
+  return 'E10-'+String(n).padStart(4,'0');
+}
+function toast(t,s){ui.innerHTML=`<div class="toast"><b>${t}</b><p class="muted">${s||''}</p><button class="cta secondary" onclick="ui.innerHTML=''">סגור</button></div>`;setTimeout(()=>ui.innerHTML='',3000)}
+
+async function load(){
+  app.innerHTML='<section class="screen"><h1 class="top-title">טוען לקוחות...</h1></section>';
+  let r=await db.from('customers').select('*').order('id',{ascending:true});
+  if(r.error){
+    app.innerHTML=`<section class="screen"><h1 class="top-title">שגיאה</h1><div class="card">${safe(r.error.message)}</div></section>`;
+    return;
+  }
+  customers=r.data||[];
+  render();
+}
+
+function installBox(){
+  return `<div id="installBox" class="card install-box"><p class="muted">רוצה שהמנהל יהיה במסך הבית?</p><button class="cta" onclick="installApp()">התקן את מנהל ערב 10</button><p class="muted" style="font-size:13px">בחר “התקנה” ולא “יצירת קיצור דרך”.</p></div>`;
+}
+function showInstall(){setTimeout(()=>{let b=document.getElementById('installBox');if(b&&installEvent)b.classList.add('show')},100)}
+async function installApp(){
+  if(!installEvent){toast('התקנה ידנית','פתח בתפריט הדפדפן ובחר “התקנה”. לא לבחור “יצירת קיצור דרך”.');return}
+  installEvent.prompt();
+  await installEvent.userChoice;
+  installEvent=null;
+  let b=document.getElementById('installBox');if(b)b.classList.remove('show')
+}
+
+function render(){
+  let u=unpaid().length,s=skipped().length;
+  app.innerHTML=`<section class="screen">
+    <h1 class="top-title">ניהול ערב 10</h1>
+    ${installBox()}
+    <div class="small-card" style="margin-bottom:16px;font-weight:900">${s?'🟡 '+s+' ביטלו להיום':u?'🟠 '+u+' לא שילמו':'🟢 המערכת מוכנה לערב'}</div>
+    <div class="stats">
+      <div class="stat"><span>לקוחות פעילים</span><strong>${active().length}</strong></div>
+      <div class="stat"><span>ביטלו היום</span><strong>${s}</strong></div>
+      <div class="stat"><span>לא שילמו</span><strong>${u}</strong></div>
+      <div class="stat"><span>לחמניות</span><strong>${buns()}</strong></div>
+    </div>
+    ${bakeryCard()}
+    <button class="cta secondary" onclick="openForm()">➕ הוסף לקוח</button>
+    <button class="cta secondary" onclick="location.href='./courier.html'">פתח שליח</button>
+    <button class="cta secondary" onclick="location.href='./client-v3.html'">פתח לקוח</button>
+    <h2 class="section-title">לקוחות</h2>
+    <input placeholder="חיפוש לקוח" oninput="filterCustomers(this.value)">
+    <div id="customers-list" class="grid" style="margin-top:16px"></div>
+    <div class="credit"><a href="https://share.google/HUoheAjuVnUKozsP8">מבית zagzagwebs</a></div>
+    <div class="muted" style="font-size:12px;text-align:center;margin-top:8px">גרסה 2.1 · מנהל מלא</div>
+  </section>`;
+  filterCustomers('');
+  showInstall();
+  startBakeryTimer();
+}
+
+function bakeryCard(){
+  let st=bakeryState(),n=nowMin();
+  let phase='',note='';
+  if(st){
+    phase=`<div class="small-card bakery-state">🔵 נשלח למאפייה · ${safe(st.time)}</div>`;
+    note=`<p class="muted manager-note">ההזמנה כבר סומנה כנשלחה היום.</p>`;
+  } else if(n<720){
+    phase=`<div class="small-card bakery-state">🟢 פתוח לשינויים</div>`;
+    note=`<p id="bakeryNote" class="muted manager-note">ניתן לבצע שינויים בהזמנות עד <b>12:00</b>.<br>נותרו ${countdownTo(720)} לשינויים.<br>בשעה <b>13:00</b> ההזמנה תישלח למאפייה.</p>`;
+  } else if(n<780){
+    phase=`<div class="small-card bakery-state">🟠 ההזמנה נסגרה</div>`;
+    note=`<p id="bakeryNote" class="muted manager-note">השינויים להיום נסגרו בשעה <b>12:00</b>.<br>נותרו ${countdownTo(780)} עד שליחה למאפייה ב־<b>13:00</b>.</p>`;
+  } else {
+    phase=`<div class="small-card bakery-state">🔴 עדיין לא סומן כנשלח</div>`;
+    note=`<p class="muted manager-note">השעה כבר אחרי 13:00. בדוק ושלח/סמן את ההזמנה למאפייה.</p>`;
+  }
+
+  return `<div class="card" style="margin:16px 0">
+    <h2 style="color:var(--gold);margin-top:0">🥖 סטטוס מאפייה</h2>
+    ${phase}
+    ${note}
+    <div class="stats" style="margin:12px 0">
+      <div class="stat"><span>לקוחות למשלוח</span><strong>${delivery().length}</strong></div>
+      <div class="stat"><span>לחמניות</span><strong>${buns()}</strong></div>
+    </div>
+    ${st?`<p class="muted">ההזמנה שנשמרה:</p><div class="small-card bakery-msg">${safe(st.message)}</div><button class="cta secondary" onclick="bakeryMsg()">שלח/שמור מחדש</button>`:`<button class="cta" onclick="bakeryMsg()">שלח / סמן שנשלח למאפייה</button>`}
+  </div>`;
+}
+
+function startBakeryTimer(){
+  clearInterval(bakeryTimer);
+  bakeryTimer=setInterval(()=>{
+    if(document.getElementById('bakeryNote')) render();
+  },60000);
+}
+
+function filterCustomers(q){
+  let list=document.querySelector('#customers-list');
+  q=String(q||'').trim();
+  let rows=customers.filter(c=>(c.name||'').includes(q)||(c.phone||'').includes(q)||(c.subscription_id||'').includes(q)||address(c).includes(q)||(c.username||'').includes(q));
+  list.innerHTML=rows.map(c=>`<div class="small-card"><div class="client-row"><div><b>${safe(c.name)}</b><br><span class="muted">${safe(c.subscription_id)} · ${safe(address(c))}</span><br><span class="muted">${safe(c.phone||'')}</span>${c.active===false?'<br><span style="color:#ff9b9b">מנוי עצור</span>':''}</div><span class="status ${c.active===false?'bad':c.skip_today?'wait':c.paid?'ok':'bad'}">${c.active===false?'עצור':c.skip_today?'היום לא':c.paid?'שולם':'לא שולם'}</span></div><div class="grid" style="grid-template-columns:1fr 1fr;margin-top:12px"><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="openForm(${c.id})">ערוך</button><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="togglePaid(${c.id})">${c.paid?'לא שולם':'שולם'}</button><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="toggleSkip(${c.id})">${c.skip_today?'בטל היום לא':'היום לא'}</button><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="copy('${clientLink()}','קישור לקוח הועתק')">קישור</button></div></div>`).join('')||'<div class="small-card">אין לקוחות עדיין</div>';
+}
+
+function fields(c={}){
+  return `<label>שם מלא<input name="name" required value="${safe(c.name)}"></label><label>טלפון<input name="phone" value="${safe(c.phone)}"></label><label>שם משתמש<input name="username" required value="${safe(c.username)}"></label><label>קוד אישי<input name="pin" required value="${safe(c[secretCol])}"></label><label>רחוב<input name="street" value="${safe(c.street)}"></label><label>מספר בית<input name="house" value="${safe(c.house)}"></label><label>קומה<input name="floor" value="${safe(c.floor)}"></label><label>דירה<input name="apartment" value="${safe(c.apartment)}"></label><label>קוד כניסה<input name="entry_code" value="${safe(c.entry_code)}"></label><label>הערה לשליח<textarea name="delivery_note">${safe(c.delivery_note)}</textarea></label><label>הערת מנהל<textarea name="admin_note">${safe(c.admin_note)}</textarea></label>`;
+}
+
+function openForm(id=''){
+  let c=customers.find(x=>x.id===id),m=document.createElement('div');
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:10000;padding:22px;overflow:auto;direction:rtl';
+  m.innerHTML=`<div class="card" style="max-width:520px;margin:0 auto"><h1 class="top-title">${c?'עריכת לקוח':'הוספת לקוח'}</h1><form class="form" onsubmit="saveForm(event,'${id}')">${fields(c||{})}<label class="small-card" style="display:flex;gap:12px;align-items:center;color:var(--text)"><input type="checkbox" name="paid" ${c?.paid?'checked':''} style="width:26px;height:26px;min-width:26px"> שולם</label><label class="small-card" style="display:flex;gap:12px;align-items:center;color:var(--text)"><input type="checkbox" name="active" ${c?(c.active?'checked':''):'checked'} style="width:26px;height:26px;min-width:26px"> מנוי פעיל</label><button class="cta" type="submit">שמור</button>${c?`<button class="cta danger-mini" type="button" onclick="deleteCustomer(${c.id})">מחק לקוח</button>`:''}<button class="cta secondary" type="button" onclick="this.closest('[style*=fixed]').remove()">סגור</button></form></div>`;
+  document.body.appendChild(m);
+}
+
+async function saveForm(e,id){
+  e.preventDefault();
+  let d=Object.fromEntries(new FormData(e.target));
+  let row={name:d.name,phone:d.phone,username:d.username,street:d.street,house:d.house,floor:d.floor,apartment:d.apartment,entry_code:d.entry_code,delivery_note:d.delivery_note,admin_note:d.admin_note,paid:!!d.paid,active:!!d.active};
+  row[secretCol]=d.pin;
+  let r;
+  if(id) r=await db.from('customers').update(row).eq('id',Number(id));
+  else {row.subscription_id=nextId();row.skip_today=false;r=await db.from('customers').insert(row)}
+  if(r.error){alert(r.error.message);return}
+  document.querySelector('[style*=fixed]')?.remove();
+  await load();
+}
+
+async function deleteCustomer(id){
+  if(!confirm('למחוק את הלקוח?'))return;
+  let r=await db.from('customers').delete().eq('id',id);
+  if(r.error)alert(r.error.message);
+  await load();
+}
+async function togglePaid(id){let c=customers.find(x=>x.id===id);await db.from('customers').update({paid:!c.paid}).eq('id',id);await load()}
+async function toggleSkip(id){let c=customers.find(x=>x.id===id);await db.from('customers').update({skip_today:!c.skip_today}).eq('id',id);await load()}
+
+function bakeryMsg(){
+  let msg=`שלום, להערב צריך להכין ${buns()} לחמניות עבור ערב 10.\nלקוחות למשלוח: ${delivery().length}\nלקוחות פעילים: ${active().length}\nביטלו היום: ${skipped().length}\nלא שילמו: ${unpaid().length}`;
+  localStorage.setItem(todayKey(),JSON.stringify({
+    time:new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}),
+    message:msg,
+    customers:delivery().length,
+    buns:buns()
+  }));
+  navigator.clipboard?.writeText(msg);
+  alert(msg+'\n\nההודעה הועתקה והסטטוס נשמר.');
+  render();
+}
+
+load();
+</script>
+</body>
+</html>
