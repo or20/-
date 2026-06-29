@@ -1,43 +1,154 @@
 <!doctype html>
 <html lang="he" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#111006" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#111006">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ערב 10 שליח">
   <title>ערב 10 שליח</title>
-  <link rel="manifest" href="./manifest-courier.webmanifest" />
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="manifest" href="./manifest-courier.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+  <style>
+    body{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+    input{user-select:text;-webkit-user-select:text}
+    .credit{text-align:center;margin:22px 0 4px;font-size:12px}
+    .credit a{color:var(--muted);text-decoration:none}
+    .install-box{display:none;margin:14px 0}
+    .install-box.show{display:block}
+    .toast{position:fixed;left:14px;right:14px;bottom:18px;z-index:9999;max-width:420px;margin:auto;background:rgba(18,14,7,.96);border:1px solid rgba(255,215,120,.32);border-radius:24px;padding:16px;box-shadow:0 24px 80px rgba(0,0,0,.55)}
+    .toast b{display:block;color:var(--gold);font-size:18px;margin-bottom:4px}
+    .mini-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+    .mini-actions a,.mini-actions button{display:block;text-align:center;border-radius:18px;border:1px solid rgba(255,215,120,.22);background:rgba(255,255,255,.06);color:var(--gold);font-weight:900;text-decoration:none;padding:13px 6px;font-size:15px}
+    .photo-box{margin-top:14px;border:1px dashed rgba(255,215,120,.35);border-radius:20px;padding:12px;text-align:center}
+    .photo-box img{max-width:100%;border-radius:18px;margin-top:10px}
+    .status-pill{display:inline-block;border-radius:999px;padding:8px 12px;border:1px solid rgba(255,215,120,.22);color:var(--muted);font-weight:900;margin-top:8px}
+    .list-card{margin-top:18px}
+    .delivery-row{display:flex;justify-content:space-between;gap:10px;align-items:center;border-top:1px solid rgba(255,215,120,.12);padding:12px 0}
+    .delivery-row:first-child{border-top:0}
+    .delivery-row button{border:1px solid rgba(255,215,120,.22);border-radius:14px;background:rgba(255,255,255,.06);color:var(--gold);font-weight:900;padding:9px 12px}
+  </style>
 </head>
 <body>
-  <main id="courier-app" class="app-shell"></main>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./supabase-config.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(function(){});
-    const db = supabase.createClient(window.EREV10_SUPABASE_URL, window.EREV10_SUPABASE_KEY);
-    const app = document.querySelector('#courier-app');
-    let rows = [];
-    let i = Number(localStorage.getItem('e10_route_i') || 0);
-    function esc(v){ return String(v ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;'); }
-    function addr(c){ return `${c.street || ''} ${c.house || ''}, קומה ${c.floor || '-'}, דירה ${c.apartment || '-'}`; }
-    async function load(){
-      app.innerHTML = '<section class="screen"><h1 class="top-title">טוען מסלול...</h1></section>';
-      const res = await db.from('customers').select('*').eq('active', true).eq('skip_today', false).order('id', { ascending: true });
-      if(res.error){ app.innerHTML = `<section class="screen"><h1 class="top-title">שגיאה</h1><div class="card">${esc(res.error.message)}</div></section>`; return; }
-      rows = res.data || [];
-      render();
-    }
-    function save(){ localStorage.setItem('e10_route_i', String(i)); }
-    function done(status){ const c = rows[i % rows.length]; localStorage.setItem('e10_status_' + c.id, status); i++; save(); render(); }
-    function next(){ i++; save(); render(); }
-    function reset(){ i = 0; save(); render(); }
-    function render(){
-      if(!rows.length){ app.innerHTML = `<section class="screen"><h1 class="top-title">מצב שליח</h1><div class="card"><h2>אין משלוחים להיום</h2><p class="muted">לקוחות שסימנו היום לא לא מופיעים במסלול.</p></div><button class="cta secondary" onclick="load()">רענן</button></section>`; return; }
-      const c = rows[i % rows.length];
-      const delivered = rows.filter(x => localStorage.getItem('e10_status_' + x.id) === 'נמסר').length;
-      app.innerHTML = `<section class="screen"><h1 class="top-title">מצב שליח</h1><div class="small-card" style="margin-bottom:16px;font-weight:900">🚚 ${delivered} מתוך ${rows.length} נמסרו</div><div class="card"><div class="badge">${esc(c.subscription_id)}</div><div class="courier-name">${esc(c.name)}</div><div class="courier-address">${esc(addr(c))}</div><div class="divider"></div><p class="muted">קוד כניסה</p><h2>${esc(c.entry_code || 'אין')}</h2><p class="muted">הערה לשליח</p><h2>${esc(c.delivery_note || 'אין הערה')}</h2><div class="action-grid"><button class="cta" onclick="done('נמסר')">נמסר</button><button class="cta secondary" onclick="done('לא בבית')">לא בבית</button><button class="cta secondary" onclick="done('בעיה')">בעיה</button><button class="cta secondary" onclick="next()">הלקוח הבא</button><button class="cta secondary" onclick="reset()">התחל מחדש</button><button class="cta secondary" onclick="load()">רענן מהשרת</button></div></div><div class="muted" style="font-size:12px;text-align:center;margin-top:18px">גרסה 0.9 · ללא ביטולים</div></section>`;
-    }
-    load();
-  </script>
+<main id="courier-app" class="app-shell"></main>
+<div id="ui"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase-config.js"></script>
+<script>
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(function(){});
+let installEvent=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvent=e;showInstall()});
+
+const db=supabase.createClient(window.EREV10_SUPABASE_URL,window.EREV10_SUPABASE_KEY);
+const app=document.querySelector('#courier-app'),ui=document.querySelector('#ui');
+let rows=[];
+let i=Number(localStorage.getItem('e10_route_i')||0);
+
+function esc(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;')}
+function digits(v){return String(v||'').replace(/\D/g,'')}
+function addr(c){return `${c.street||''} ${c.house||''}, קומה ${c.floor||'-'}, דירה ${c.apartment||'-'}`}
+function fullAddr(c){return `${c.street||''} ${c.house||''}, ${c.floor? 'קומה '+c.floor+', ':''}${c.apartment? 'דירה '+c.apartment+', ':''}ישראל`}
+function phone(c){return digits(c.phone)}
+function statusKey(id){return 'e10_status_'+id}
+function photoKey(id){return 'e10_photo_'+id}
+function timeKey(id){return 'e10_time_'+id}
+function getStatus(c){return localStorage.getItem(statusKey(c.id))||'ממתין'}
+function getTime(c){return localStorage.getItem(timeKey(c.id))||''}
+function save(){localStorage.setItem('e10_route_i',String(i))}
+function toast(t,s){ui.innerHTML=`<div class="toast"><b>${t}</b><p class="muted">${s||''}</p><button class="cta secondary" onclick="ui.innerHTML=''">סגור</button></div>`;setTimeout(()=>ui.innerHTML='',3000)}
+function copy(t,m){navigator.clipboard?.writeText(t);toast('הועתק',m||'')}
+function showInstall(){setTimeout(()=>{let b=document.getElementById('installBox');if(b&&installEvent)b.classList.add('show')},100)}
+async function installApp(){if(!installEvent)return toast('התקנה ידנית','פתח בתפריט הדפדפן ובחר “התקנה”.');installEvent.prompt();await installEvent.userChoice;installEvent=null;let b=document.getElementById('installBox');if(b)b.classList.remove('show')}
+function installBox(){return `<div id="installBox" class="card install-box"><p class="muted">רוצה שהשליח יהיה במסך הבית?</p><button class="cta" onclick="installApp()">התקן את שליח ערב 10</button><p class="muted" style="font-size:13px">בחר “התקנה” ולא “יצירת קיצור דרך”.</p></div>`}
+
+async function load(){
+  app.innerHTML='<section class="screen"><h1 class="top-title">טוען מסלול...</h1></section>';
+  const res=await db.from('customers').select('*').eq('active',true).eq('skip_today',false).order('id',{ascending:true});
+  if(res.error){app.innerHTML=`<section class="screen"><h1 class="top-title">שגיאה</h1><div class="card">${esc(res.error.message)}</div></section>`;return}
+  rows=res.data||[];
+  if(i>=rows.length)i=0;
+  save();
+  render();
+}
+
+function deliveredCount(){return rows.filter(x=>getStatus(x)==='נמסר').length}
+function current(){return rows[i%rows.length]}
+
+function done(status){
+  if(!rows.length)return;
+  const c=current();
+  localStorage.setItem(statusKey(c.id),status);
+  localStorage.setItem(timeKey(c.id),new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}));
+  if(status==='נמסר') next();
+  else render();
+}
+function next(){if(!rows.length)return;i=(i+1)%rows.length;save();render()}
+function prev(){if(!rows.length)return;i=(i-1+rows.length)%rows.length;save();render()}
+function reset(){
+  if(!confirm('להתחיל מסלול מחדש? הסטטוסים המקומיים יישארו, רק המיקום במסלול יתאפס.'))return;
+  i=0;save();render();
+}
+function clearStatuses(){
+  if(!confirm('לאפס את כל סימוני השליח מהטלפון?'))return;
+  rows.forEach(c=>{localStorage.removeItem(statusKey(c.id));localStorage.removeItem(timeKey(c.id));localStorage.removeItem(photoKey(c.id))});
+  i=0;save();render();
+}
+
+function takePhoto(){
+  const input=document.createElement('input');
+  input.type='file';
+  input.accept='image/*';
+  input.capture='environment';
+  input.onchange=()=>{
+    const file=input.files&&input.files[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const c=current();
+      try{
+        localStorage.setItem(photoKey(c.id),reader.result);
+        toast('התמונה נשמרה','נשמר רק בטלפון של השליח. לא נשלח לשרת ולא עולה כסף אחסון.');
+        render();
+      }catch(e){
+        toast('התמונה גדולה מדי','הצילום לא נשמר. נסה לצלם באיכות נמוכה יותר.');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+function removePhoto(){
+  const c=current();
+  localStorage.removeItem(photoKey(c.id));
+  render();
+}
+function photoBox(c){
+  let p=localStorage.getItem(photoKey(c.id));
+  return `<div class="photo-box"><button class="cta secondary" onclick="takePhoto()">📸 צלם דלת</button><p class="muted" style="font-size:13px;margin:8px 0 0">התמונה נשמרת רק בטלפון של השליח.</p>${p?`<img src="${p}" alt="צילום דלת"><button class="cta secondary" onclick="removePhoto()">מחק צילום</button>`:''}</div>`;
+}
+function links(c){
+  let p=phone(c);
+  let tel=p?`tel:${p}`:'#';
+  let wa=p?`https://wa.me/972${p.replace(/^0/,'')}`:'#';
+  let waze=`https://waze.com/ul?q=${encodeURIComponent(fullAddr(c))}`;
+  let maps=`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddr(c))}`;
+  return `<div class="mini-actions"><a href="${waze}" target="_blank">Waze</a><a href="${maps}" target="_blank">Maps</a><a href="${tel}">חיוג</a><a href="${wa}" target="_blank">WhatsApp</a><button onclick="copy('${esc(addr(c))}','כתובת הועתקה')">העתק כתובת</button><button onclick="copy('${esc(c.entry_code||'אין')}','קוד כניסה הועתק')">העתק קוד</button></div>`;
+}
+function routeList(){
+  return `<div class="card list-card"><h2 style="color:var(--gold);margin-top:0">מסלול היום</h2>${rows.map((c,idx)=>`<div class="delivery-row"><div><b>${esc(c.name)}</b><br><span class="muted">${esc(c.subscription_id)} · ${esc(addr(c))}</span><br><span class="status-pill">${esc(getStatus(c))}${getTime(c)?' · '+esc(getTime(c)):''}</span></div><button onclick="i=${idx};save();render()">פתח</button></div>`).join('')}</div>`;
+}
+
+function render(){
+  if(!rows.length){
+    app.innerHTML=`<section class="screen"><h1 class="top-title">מצב שליח</h1>${installBox()}<div class="card"><h2>אין משלוחים להיום</h2><p class="muted">לקוחות שסימנו היום לא לא מופיעים במסלול.</p></div><button class="cta secondary" onclick="load()">רענן</button><div class="credit"><a href="https://share.google/HUoheAjuVnUKozsP8">מבית zagzagwebs</a></div></section>`;
+    showInstall();
+    return;
+  }
+  const c=current(),delivered=deliveredCount(),left=rows.length-delivered,st=getStatus(c);
+  app.innerHTML=`<section class="screen"><h1 class="top-title">מצב שליח</h1>${installBox()}<div class="small-card" style="margin-bottom:16px;font-weight:900">🚚 ${delivered} מתוך ${rows.length} נמסרו · נשארו ${left}</div><div class="card"><div class="badge">${esc(c.subscription_id)}</div><div class="courier-name">${esc(c.name)}</div><div class="courier-address">${esc(addr(c))}</div><span class="status-pill">סטטוס: ${esc(st)}${getTime(c)?' · '+esc(getTime(c)):''}</span><div class="divider"></div><p class="muted">קוד כניסה</p><h2>${esc(c.entry_code||'אין')}</h2><p class="muted">הערה לשליח</p><h2>${esc(c.delivery_note||'אין הערה')}</h2>${links(c)}${photoBox(c)}<div class="action-grid" style="margin-top:16px"><button class="cta" onclick="done('נמסר')">נמסר</button><button class="cta secondary" onclick="done('לא בבית')">לא בבית</button><button class="cta secondary" onclick="done('בעיה')">בעיה</button><button class="cta secondary" onclick="prev()">הקודם</button><button class="cta secondary" onclick="next()">הלקוח הבא</button><button class="cta secondary" onclick="load()">רענן מהשרת</button></div></div>${routeList()}<button class="cta secondary" onclick="reset()">התחל מסלול מהתחלה</button><button class="cta secondary" onclick="clearStatuses()">איפוס סימוני שליח</button><div class="credit"><a href="https://share.google/HUoheAjuVnUKozsP8">מבית zagzagwebs</a></div><div class="muted" style="font-size:12px;text-align:center;margin-top:8px">גרסה 1.1 · שליח מלא ללא אחסון תמונות</div></section>`;
+  showInstall();
+}
+load();
+</script>
 </body>
 </html>
