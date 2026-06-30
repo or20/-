@@ -78,10 +78,39 @@ async function ensureDefault(){if(localStorage.getItem(initKey())==='1')return;l
 function loginScreen(){clearInterval(statusTimer);app.innerHTML=`<section class="screen"><h1 class="top-title">כניסה לערב 10</h1><div class="card"><form class="form" onsubmit="login(event)"><label>שם משתמש<input name="u" required></label><label>קוד אישי<input name="p" required></label><button class="cta" type="submit">כניסה</button></form></div><div class="credit"><a href="https://share.google/HUoheAjuVnUKozsP8">מבית zagzagwebs</a></div></section>`;showInstall()}
 async function login(e){e.preventDefault();let d=Object.fromEntries(new FormData(e.target));let r=await db.from('customers').select('*').eq('username',d.u).eq(keyName,d.p).maybeSingle();if(r.error)return toast('שגיאה',r.error.message);if(!r.data)return toast('לא הצלחנו להיכנס','שם משתמש או קוד אישי לא נכונים.');if(r.data.active===false)return toast('המנוי עצור','פנה אלינו להפעלה מחדש.');me=r.data;localStorage.setItem(STORE,String(me.id));await ensureDefault();await loadOrdersCount();resetDraft();screen()}
 function out(){localStorage.removeItem(STORE);me=null;loginScreen()}
-function chooseToday(v){if(!inServiceArea())return toast('השירות כרגע רק ברחוב ניב דוד','אנחנו מתחילים באזור אחד ובהמשך נתרחב.');if(v&&limitFull())return toast('היום מלא','הגענו למכסה של 50 הזמנות להיום.');if(locked())return toast('חלון ההזמנות סגור','אפשר להזמין מ־21:00 בערב ועד 12:00 בצהריים.');draftToday=v;changed=true;screen()}
+async function chooseToday(v){
+  if(!inServiceArea())return toast('השירות כרגע רק ברחוב ניב דוד','אנחנו מתחילים באזור אחד ובהמשך נתרחב.');
+  await loadOrdersCount();
+  if(v&&limitFull())return toast('היום מלא','הגענו למכסה של 50 הזמנות להיום.');
+  if(locked())return toast('חלון ההזמנות סגור','אפשר להזמין מ־21:00 בערב ועד 12:00 בצהריים.');
+  let r=await db.from('customers').update({skip_today:!v}).eq('id',me.id).select('id,skip_today').single();
+  if(r.error)return toast('שגיאה בשמירה',r.error.message);
+  me.skip_today=!v;
+  draftToday=null;
+  changed=false;
+  await loadOrdersCount();
+  screen();
+  toast('נשמר בהצלחה',v?`ההזמנה שלך ל${orderWord()} נקלטה.`:`סימנו שאין הזמנה ל${orderWord()}.`);
+}
 function choosePlan(p){draftPlan=p;if(p==='manual')draftToday=false;if(p==='daily')draftToday=true;if(p==='custom'&&!draftDays)draftDays=currentDays();changed=true;screen()}
 function toggleDay(d){let a=[...currentDays()],s=String(d);a=a.includes(s)?a.filter(x=>x!==s):[...a,s];draftPlan='custom';draftDays=a;draftToday=a.includes(String(dIndex()))&&noFriday();changed=true;screen()}
-async function saveAll(){if(!inServiceArea())return toast('השירות כרגע רק ברחוב ניב דוד','לא ניתן להזמין לכתובת מחוץ לאזור הפעילות הנוכחי.');await loadOrdersCount();if(todayWanted()&&limitFull())return toast('היום מלא','הגענו למכסה של 50 הזמנות להיום.');if(locked())return toast('חלון ההזמנות סגור','אפשר להזמין מ־21:00 בערב ועד 12:00 בצהריים.');let want=todayWanted(),r=await db.from('customers').update({skip_today:!want}).eq('id',me.id);if(r.error)return toast('שגיאה',r.error.message);me.skip_today=!want;if(draftPlan)localStorage.setItem(planKey(),draftPlan);if(draftDays)localStorage.setItem(daysKey(),draftDays.join(','));localStorage.setItem(initKey(),'1');await loadOrdersCount();resetDraft();screen();toast('נשמר בהצלחה','העדכון נקלט במערכת.')}
+async function saveAll(){
+  if(!inServiceArea())return toast('השירות כרגע רק ברחוב ניב דוד','לא ניתן להזמין לכתובת מחוץ לאזור הפעילות הנוכחי.');
+  await loadOrdersCount();
+  if(todayWanted()&&limitFull())return toast('היום מלא','הגענו למכסה של 50 הזמנות להיום.');
+  if(locked())return toast('חלון ההזמנות סגור','אפשר להזמין מ־21:00 בערב ועד 12:00 בצהריים.');
+  let want=todayWanted();
+  let r=await db.from('customers').update({skip_today:!want}).eq('id',me.id).select('id,skip_today').single();
+  if(r.error)return toast('שגיאה',r.error.message);
+  me.skip_today=!want;
+  if(draftPlan)localStorage.setItem(planKey(),draftPlan);
+  if(draftDays)localStorage.setItem(daysKey(),draftDays.join(','));
+  localStorage.setItem(initKey(),'1');
+  await loadOrdersCount();
+  resetDraft();
+  screen();
+  toast('נשמר בהצלחה','העדכון נקלט במערכת.');
+}
 async function refresh(){let r=await db.from('customers').select('*').eq('id',me.id).single();if(!r.error&&r.data){me=r.data;await loadOrdersCount();resetDraft();screen();toast('עודכן','הסטטוס רוענן.')}}
 async function pauseSub(){if(!confirm('לעצור את המנוי עכשיו?'))return;let r=await db.from('customers').update({active:false,skip_today:true,admin_note:'הלקוח ביקש עצירת מנוי דרך האפליקציה'}).eq('id',me.id);if(r.error)return toast('שגיאה',r.error.message);localStorage.removeItem(STORE);loginScreen();toast('המנוי נעצר','הפרטים נשמרו אצלנו.')}
 
@@ -95,7 +124,7 @@ async function installApp(){if(!installEvent)return toast('התקנה ידנית
 function areaBox(){return `<div class="card area-card"><h2 style="color:var(--gold);margin-top:0">📍 אזור פעילות נוכחי</h2><p class="muted">כרגע השירות פעיל רק ברחוב <b>${SERVICE_STREET}</b>.</p><div id="spotsLeft" class="spots">נותרו ${spotsLeft()} מקומות מתוך ${DAILY_LIMIT} להיום</div><p class="muted" style="font-size:13px">אנחנו מגבילים ל־${DAILY_LIMIT} הזמנות ביום כדי לשמור על טריות, דיוק ושירות טוב.<br>⏰ ניתן להוסיף הזמנה בכל יום מ־21:00 בערב ועד 12:00 בצהריים.</p></div>`}
 function screen(){
   let ok=todayWanted(),st=statusText(ok),isLocked=locked()||!inServiceArea()||limitFull();
-  app.innerHTML=`<section class="screen"><div class="pill"><span class="dot"></span>ערב 10 · הלחם של השכונה</div><h1 class="hello">ערב טוב,<br>${clean(me.name)}</h1>${installBox()}${areaBox()}<div class="card"><p class="muted" style="font-size:12px;margin:0 0 4px">מס׳ לקוח</p><div class="badge">${clean(me.subscription_id)}</div><p class="muted">הסטטוס שלך להיום</p><div id="statusTitle" class="status-big">${st.title}</div><p id="statusNote" class="muted status-note">${clean(st.note).replaceAll('\n','<br>')}</p><div class="tagrow"><span class="tag">היום: ${dayName()}</span><span class="tag">שינויים עד 12:00</span><span class="tag">עד 50 הזמנות ביום</span><span class="tag">הזמנות 21:00–12:00</span><span class="tag">18:30–20:00</span><span class="tag">10 לחמניות</span></div><p>${clean(addr(me))}</p><div class="two"><button id="yesBtn" class="cta yes ${ok?'chosen':''} ${isLocked?'lockedBtn':''}" onclick="chooseToday(true)">אני רוצה ${orderWord()}</button><button id="noBtn" class="cta no ${!ok?'chosen':''} ${isLocked?'lockedBtn':''}" onclick="chooseToday(false)">היום לא</button></div><button class="cta secondary" onclick="refresh()">רענן סטטוס</button></div><h2 class="section-title">סוג המנוי</h2><div class="grid">${pcard('daily','כל ערב','ברירת המחדל היא לקבל בכל יום חלוקה. אין חלוקה ביום שישי.')}${pcard('custom','ימים קבועים','בחר ימים קבועים. ביום שנבחר ברירת המחדל היא לקבל.')}${pcard('manual','רק לפי הזמנה','ברירת המחדל היא שאין הזמנה.<br>ניתן להזמין מ־21:00 בערב ועד 12:00 בצהריים.')}</div><div class="card" style="margin-top:18px"><p class="muted">סוג מנוי נוכחי</p><h2 style="color:var(--gold);margin-top:0">${label()}</h2><button class="cta secondary" onclick="out()">יציאה</button></div><div class="card" style="margin-top:18px"><p class="muted">רוצה לעצור זמנית את השירות?</p><button class="cta smallDanger" onclick="pauseSub()">עצירת מנוי</button></div>${saveBox()}<div class="credit"><a href="https://share.google/HUoheAjuVnUKozsP8">מבית zagzagwebs</a></div><div class="muted" style="font-size:12px;text-align:center;margin-top:8px">גרסה 3.6 · שמירה פעילה מ־21:00 עד 12:00</div></section>`;
+  app.innerHTML=`<section class="screen"><div class="pill"><span class="dot"></span>ערב 10 · הלחם של השכונה</div><h1 class="hello">ערב טוב,<br>${clean(me.name)}</h1>${installBox()}${areaBox()}<div class="card"><p class="muted" style="font-size:12px;margin:0 0 4px">מס׳ לקוח</p><div class="badge">${clean(me.subscription_id)}</div><p class="muted">הסטטוס שלך להיום</p><div id="statusTitle" class="status-big">${st.title}</div><p id="statusNote" class="muted status-note">${clean(st.note).replaceAll('\n','<br>')}</p><div class="tagrow"><span class="tag">היום: ${dayName()}</span><span class="tag">שינויים עד 12:00</span><span class="tag">עד 50 הזמנות ביום</span><span class="tag">הזמנות 21:00–12:00</span><span class="tag">18:30–20:00</span><span class="tag">10 לחמניות</span></div><p>${clean(addr(me))}</p><div class="two"><button id="yesBtn" class="cta yes ${ok?'chosen':''} ${isLocked?'lockedBtn':''}" onclick="chooseToday(true)">אני רוצה ${orderWord()}</button><button id="noBtn" class="cta no ${!ok?'chosen':''} ${isLocked?'lockedBtn':''}" onclick="chooseToday(false)">היום לא</button></div><button class="cta secondary" onclick="refresh()">רענן סטטוס</button></div><h2 class="section-title">סוג המנוי</h2><div class="grid">${pcard('daily','כל ערב','ברירת המחדל היא לקבל בכל יום חלוקה. אין חלוקה ביום שישי.')}${pcard('custom','ימים קבועים','בחר ימים קבועים. ביום שנבחר ברירת המחדל היא לקבל.')}${pcard('manual','רק לפי הזמנה','ברירת המחדל היא שאין הזמנה.<br>ניתן להזמין מ־21:00 בערב ועד 12:00 בצהריים.')}</div><div class="card" style="margin-top:18px"><p class="muted">סוג מנוי נוכחי</p><h2 style="color:var(--gold);margin-top:0">${label()}</h2><button class="cta secondary" onclick="out()">יציאה</button></div><div class="card" style="margin-top:18px"><p class="muted">רוצה לעצור זמנית את השירות?</p><button class="cta smallDanger" onclick="pauseSub()">עצירת מנוי</button></div>${saveBox()}<div class="credit"><a href="https://share.google/HUoheAjuVnUKozsP8">מבית zagzagwebs</a></div><div class="muted" style="font-size:12px;text-align:center;margin-top:8px">גרסה 3.7 · כפתור הזמנה נשמר מיידית</div></section>`;
   showInstall();
   startStatusTimer();
 }
