@@ -24,6 +24,9 @@
     .filterbar button.on{background:linear-gradient(135deg,var(--gold),#ffe28a);color:#201500}
     .mini-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
     .mini-actions a,.mini-actions button{display:block;text-align:center;border-radius:16px;border:1px solid rgba(255,215,120,.22);background:rgba(255,255,255,.06);color:var(--gold);font-weight:900;text-decoration:none;padding:10px 4px;font-size:14px}
+    .problem-card{border-color:rgba(255,70,70,.38)!important;background:rgba(255,70,70,.07)!important}
+    .problem-title{color:#ff9b9b;font-weight:950}
+    .problem-pill{display:inline-block;border-radius:999px;padding:6px 10px;border:1px solid rgba(255,70,70,.38);color:#ff9b9b;font-weight:900;margin-top:7px;font-size:13px}
   </style>
 </head>
 <body>
@@ -59,15 +62,37 @@ function paused(){return customers.filter(c=>c.active===false)}
 function skipped(){return active().filter(c=>c.skip_today)}
 function delivery(){return active().filter(c=>!c.skip_today)}
 function unpaid(){return active().filter(c=>!c.paid)}
+function problems(){return customers.filter(c=>problemData(c))}
 function buns(){return delivery().length*10}
 function expectedIncome(){return delivery().length*25}
 function monthlyIncome(){return active().length*25*26}
-function clientLink(){return location.origin+location.pathname.replace('manager.html','client-v3.html').replace('manager-full-v3.html','client-v3.html')}
+function clientLink(){return location.origin+location.pathname.replace('manager.html','client-v3.html').replace('manager-full-v4.html','client-v3.html')}
 function copy(t,m){navigator.clipboard?.writeText(t);toast('הועתק',m||'')}
 function nowMin(){let d=new Date();return d.getHours()*60+d.getMinutes()}
 function countdownTo(minTarget){let n=nowMin(),left=Math.max(0,minTarget-n),h=Math.floor(left/60),m=left%60;if(left<=0)return '';return `${h? h+' שעות ו־':''}${m} דקות`}
 function nextId(){let nums=customers.map(c=>Number(String(c.subscription_id||'').replace('E10-',''))||0).filter(Boolean).sort((a,b)=>a-b);let n=1;for(let x of nums){if(x===n)n++;else if(x>n)break}return 'E10-'+String(n).padStart(4,'0')}
 function toast(t,s){ui.innerHTML=`<div class="toast"><b>${t}</b><p class="muted">${s||''}</p><button class="cta secondary" onclick="ui.innerHTML=''">סגור</button></div>`;setTimeout(()=>ui.innerHTML='',3200)}
+
+function problemData(c){
+  let status=c.delivery_status||c.deliveryStatus||c.status_today||'';
+  let reason=c.delivery_problem_reason||c.problem_reason||c.problem||'';
+  let note=c.delivery_problem_note||c.problem_note||'';
+  let time=c.delivery_problem_time||c.problem_time||'';
+  if(status==='בעיה'||reason||note)return {status:status||'בעיה',reason:reason||'בעיה',note,time};
+  return null;
+}
+function problemBlock(c){
+  let p=problemData(c);
+  if(!p)return '';
+  return `<div class="small-card problem-card" style="margin-top:10px"><div class="problem-title">🔴 בעיה במשלוח</div><div class="muted">סיבה: ${safe(p.reason)}</div>${p.time?`<div class="muted">שעה: ${safe(p.time)}</div>`:''}${p.note?`<div class="muted">הערה: ${safe(p.note)}</div>`:''}<button class="cta secondary" style="margin-top:10px" onclick="markProblemHandled(${c.id})">סמן טופל</button></div>`;
+}
+async function markProblemHandled(id){
+  let row={delivery_status:null,delivery_problem_reason:null,delivery_problem_note:null,delivery_problem_time:null};
+  let r=await db.from('customers').update(row).eq('id',id);
+  if(r.error){toast('לא הצלחתי לעדכן','יכול להיות ששדות הבעיה עדיין לא קיימים ב־Supabase.');return}
+  toast('טופל','הבעיה סומנה כטופלה.');
+  await load();
+}
 
 function bakeryOrderText(){
   return `שלום, להערב צריך להכין ${buns()} לחמניות עבור ערב 10.\nלקוחות למשלוח: ${delivery().length}\nלקוחות פעילים: ${active().length}\nביטלו היום: ${skipped().length}\nלא שילמו: ${unpaid().length}`;
@@ -91,11 +116,11 @@ function showInstall(){setTimeout(()=>{let b=document.getElementById('installBox
 async function installApp(){if(!installEvent){toast('התקנה ידנית','פתח בתפריט הדפדפן ובחר “התקנה”.');return}installEvent.prompt();await installEvent.userChoice;installEvent=null;let b=document.getElementById('installBox');if(b)b.classList.remove('show')}
 
 function render(){
-  let u=unpaid().length,s=skipped().length;
+  let u=unpaid().length,s=skipped().length,p=problems().length;
   app.innerHTML=`<section class="screen">
     <h1 class="top-title">ניהול ערב 10</h1>
     ${installBox()}
-    <div class="small-card" style="margin-bottom:16px;font-weight:900">${s?'🟡 '+s+' ביטלו להיום':u?'🟠 '+u+' לא שילמו':'🟢 המערכת מוכנה לערב'}</div>
+    <div class="small-card" style="margin-bottom:16px;font-weight:900">${p?'🔴 '+p+' בעיות דורשות טיפול':s?'🟡 '+s+' ביטלו להיום':u?'🟠 '+u+' לא שילמו':'🟢 המערכת מוכנה לערב'}</div>
     <div class="stats">
       <div class="stat"><span>לקוחות פעילים</span><strong>${active().length}</strong></div>
       <div class="stat"><span>ביטלו היום</span><strong>${s}</strong></div>
@@ -104,10 +129,11 @@ function render(){
     </div>
     <div class="stats" style="margin-top:12px">
       <div class="stat"><span>משלוחים היום</span><strong>${delivery().length}</strong></div>
-      <div class="stat"><span>מוקפאים</span><strong>${paused().length}</strong></div>
+      <div class="stat"><span>בעיות היום</span><strong>${p}</strong></div>
       <div class="stat"><span>צפי יומי</span><strong>₪${expectedIncome()}</strong></div>
       <div class="stat"><span>צפי חודשי</span><strong>₪${monthlyIncome()}</strong></div>
     </div>
+    ${problemsCard()}
     ${bakeryCard()}
     <button class="cta secondary" onclick="openForm()">➕ הוסף לקוח</button>
     <button class="cta secondary" onclick="location.href='./courier.html'">פתח שליח</button>
@@ -117,18 +143,24 @@ function render(){
     <div class="filterbar">
       ${filterBtn('all','כולם')}
       ${filterBtn('delivery','למשלוח')}
+      ${filterBtn('problems','בעיות')}
       ${filterBtn('skipped','ביטלו')}
       ${filterBtn('unpaid','לא שילמו')}
       ${filterBtn('paused','מוקפאים')}
-      ${filterBtn('active','פעילים')}
     </div>
     <div id="customers-list" class="grid" style="margin-top:16px"></div>
     <div class="credit"><a href="https://share.google/HUoheAjuVnUKozsP8">מבית zagzagwebs</a></div>
-    <div class="muted" style="font-size:12px;text-align:center;margin-top:8px">גרסה 2.3 · מאפייה אוטומטי</div>
+    <div class="muted" style="font-size:12px;text-align:center;margin-top:8px">גרסה 2.4 · מנהל בעיות</div>
   </section>`;
   filterCustomers('');
   showInstall();
   startBakeryTimer();
+}
+
+function problemsCard(){
+  let p=problems();
+  if(!p.length)return '';
+  return `<div class="card problem-card" style="margin:16px 0"><h2 style="color:#ff9b9b;margin-top:0">🔴 בעיות היום</h2>${p.map(c=>`<div class="small-card" style="margin-top:10px"><b>${safe(c.name)}</b><br><span class="muted">${safe(c.subscription_id)} · ${safe(address(c))}</span>${problemBlock(c)}</div>`).join('')}</div>`;
 }
 
 function filterBtn(k,t){return `<button class="${currentFilter===k?'on':''}" onclick="setFilter('${k}')">${t}</button>`}
@@ -161,9 +193,9 @@ function startBakeryTimer(){clearInterval(bakeryTimer);bakeryTimer=setInterval((
 function filteredRows(q){
   q=String(q||'').trim();
   let rows=customers.filter(c=>(c.name||'').includes(q)||(c.phone||'').includes(q)||(c.subscription_id||'').includes(q)||address(c).includes(q)||(c.username||'').includes(q));
-  if(currentFilter==='active')rows=rows.filter(c=>c.active);
   if(currentFilter==='paused')rows=rows.filter(c=>c.active===false);
   if(currentFilter==='delivery')rows=rows.filter(c=>c.active&&!c.skip_today);
+  if(currentFilter==='problems')rows=rows.filter(c=>problemData(c));
   if(currentFilter==='skipped')rows=rows.filter(c=>c.active&&c.skip_today);
   if(currentFilter==='unpaid')rows=rows.filter(c=>c.active&&!c.paid);
   return rows;
@@ -171,8 +203,8 @@ function filteredRows(q){
 function filterCustomers(q){let list=document.querySelector('#customers-list');let rows=filteredRows(q);list.innerHTML=rows.map(c=>card(c)).join('')||'<div class="small-card">אין לקוחות להצגה</div>'}
 
 function card(c){
-  let phone=digits(c.phone),wa=phone?`https://wa.me/972${phone.replace(/^0/,'')}`:'#',waze=`https://waze.com/ul?q=${encodeURIComponent(address(c))}`;
-  return `<div class="small-card"><div class="client-row"><div><b>${safe(c.name)}</b><br><span class="muted">${safe(c.subscription_id)} · ${safe(address(c))}</span><br><span class="muted">${safe(c.phone||'')}</span>${c.active===false?'<br><span style="color:#ff9b9b">מנוי עצור</span>':''}</div><span class="status ${c.active===false?'bad':c.skip_today?'wait':c.paid?'ok':'bad'}">${c.active===false?'עצור':c.skip_today?'היום לא':c.paid?'שולם':'לא שולם'}</span></div><div class="grid" style="grid-template-columns:1fr 1fr;margin-top:12px"><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="openForm(${c.id})">ערוך</button><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="togglePaid(${c.id})">${c.paid?'לא שולם':'שולם'}</button><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="toggleSkip(${c.id})">${c.skip_today?'בטל היום לא':'היום לא'}</button><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="copy('${clientLink()}','קישור לקוח הועתק')">קישור</button></div><div class="mini-actions"><a href="tel:${safe(c.phone||'')}">חיוג</a><a href="${wa}" target="_blank">ווטסאפ</a><a href="${waze}" target="_blank">Waze</a><button onclick="copy('${safe(address(c))}','כתובת הועתקה')">העתק כתובת</button></div></div>`
+  let phone=digits(c.phone),wa=phone?`https://wa.me/972${phone.replace(/^0/,'')}`:'#',waze=`https://waze.com/ul?q=${encodeURIComponent(address(c))}`,p=problemData(c);
+  return `<div class="small-card ${p?'problem-card':''}"><div class="client-row"><div><b>${safe(c.name)}</b><br><span class="muted">${safe(c.subscription_id)} · ${safe(address(c))}</span><br><span class="muted">${safe(c.phone||'')}</span>${c.active===false?'<br><span style="color:#ff9b9b">מנוי עצור</span>':''}${p?`<br><span class="problem-pill">🔴 ${safe(p.reason)}</span>`:''}</div><span class="status ${c.active===false?'bad':c.skip_today?'wait':c.paid?'ok':'bad'}">${p?'בעיה':c.active===false?'עצור':c.skip_today?'היום לא':c.paid?'שולם':'לא שולם'}</span></div>${problemBlock(c)}<div class="grid" style="grid-template-columns:1fr 1fr;margin-top:12px"><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="openForm(${c.id})">ערוך</button><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="togglePaid(${c.id})">${c.paid?'לא שולם':'שולם'}</button><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="toggleSkip(${c.id})">${c.skip_today?'בטל היום לא':'היום לא'}</button><button class="cta secondary" style="font-size:16px;padding:12px;margin:0" onclick="copy('${clientLink()}','קישור לקוח הועתק')">קישור</button></div><div class="mini-actions"><a href="tel:${safe(c.phone||'')}">חיוג</a><a href="${wa}" target="_blank">ווטסאפ</a><a href="${waze}" target="_blank">Waze</a><button onclick="copy('${safe(address(c))}','כתובת הועתקה')">העתק כתובת</button></div></div>`
 }
 function fields(c={}){return `<label>שם מלא<input name="name" required value="${safe(c.name)}"></label><label>טלפון<input name="phone" value="${safe(c.phone)}"></label><label>שם משתמש<input name="username" required value="${safe(c.username)}"></label><label>קוד אישי<input name="pin" required value="${safe(c[secretCol])}"></label><label>רחוב<input name="street" value="${safe(c.street)}"></label><label>מספר בית<input name="house" value="${safe(c.house)}"></label><label>קומה<input name="floor" value="${safe(c.floor)}"></label><label>דירה<input name="apartment" value="${safe(c.apartment)}"></label><label>קוד כניסה<input name="entry_code" value="${safe(c.entry_code)}"></label><label>הערה לשליח<textarea name="delivery_note">${safe(c.delivery_note)}</textarea></label><label>הערת מנהל<textarea name="admin_note">${safe(c.admin_note)}</textarea></label>`}
 function openForm(id=''){
