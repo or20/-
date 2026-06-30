@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#111006">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ערב 10 מאפייה">
+<title>ערב 10 מאפייה</title>
+<link rel="stylesheet" href="./styles.css">
+<style>
+body{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.app-shell{max-width:980px}.bakery-title{font-size:44px;line-height:1.05;font-weight:950;margin:22px 0}.big-status{font-size:34px;font-weight:950;color:var(--gold);line-height:1.2}
+.bakery-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}.bakery-stat{background:rgba(255,255,255,.06);border:1px solid rgba(255,215,120,.18);border-radius:24px;padding:18px;text-align:center}.bakery-stat span{display:block;color:var(--muted);font-weight:800;font-size:15px}.bakery-stat strong{display:block;color:var(--gold);font-size:42px;margin-top:8px}
+.order-box{white-space:pre-line;text-align:right;line-height:1.65;font-size:20px}.status-line{display:inline-block;border:1px solid rgba(255,215,120,.25);border-radius:999px;padding:10px 16px;color:var(--gold);font-weight:950;margin:10px 0}
+.action-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}.action-row .cta{margin:0}.ready{background:#25D366!important;color:#06140a!important}.muted-small{font-size:13px;text-align:center;margin-top:14px;color:var(--muted)}
+.toast{position:fixed;left:14px;right:14px;bottom:18px;z-index:9999;max-width:520px;margin:auto;background:rgba(18,14,7,.96);border:1px solid rgba(255,215,120,.32);border-radius:24px;padding:16px;box-shadow:0 24px 80px rgba(0,0,0,.55)}.toast b{display:block;color:var(--gold);font-size:20px;margin-bottom:4px}
+@media(max-width:760px){.bakery-title{font-size:34px}.bakery-grid{grid-template-columns:1fr 1fr}.bakery-stat strong{font-size:34px}.action-row{grid-template-columns:1fr}.order-box{font-size:17px}}
+@media(min-width:900px){body{font-size:20px}.card{padding:34px}}
+</style>
+</head>
+<body>
+<main id="bakery-app" class="app-shell"></main><div id="ui"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase-config.js"></script>
+<script>
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(function(){});
+const db=supabase.createClient(window.EREV10_SUPABASE_URL,window.EREV10_SUPABASE_KEY),app=document.querySelector('#bakery-app'),ui=document.querySelector('#ui');
+let customers=[],order=null,timer=null,audioOn=false,audioCtx=null,lastStatus='';const BAKERY_CODE='1010';
+function safe(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;')}
+function todayLocal(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function nowMin(){let d=new Date();return d.getHours()*60+d.getMinutes()}
+function active(){return customers.filter(c=>c.active)}function delivery(){return customers.filter(c=>c.active&&!c.skip_today)}function skipped(){return customers.filter(c=>c.active&&c.skip_today)}function unpaid(){return customers.filter(c=>c.active&&!c.paid)}function buns(){return delivery().length*10}
+function toast(t,s){ui.innerHTML=`<div class="toast"><b>${t}</b><p class="muted">${s||''}</p><button class="cta secondary" onclick="ui.innerHTML=''">סגור</button></div>`;setTimeout(()=>ui.innerHTML='',3500)}
+function countdownTo(minTarget){let left=Math.max(0,minTarget-nowMin()),h=Math.floor(left/60),m=left%60;return `${h?h+' שעות ו־':''}${m} דקות`}
+function message(){return `שלום,
+להערב צריך להכין ${buns()} לחמניות עבור ערב 10.
+
+לקוחות למשלוח: ${delivery().length}
+לקוחות פעילים: ${active().length}
+ביטלו היום: ${skipped().length}
+לא שילמו: ${unpaid().length}
+
+תודה רבה,
+ערב 10`}
+function statusLabel(){if(!order){if(nowMin()<780)return 'ממתין לשעה 13:00';return 'אין הזמנה שמורה'}if(order.status==='מוכנה')return '✅ ההזמנה מוכנה';if(order.status==='התקבלה')return '🟢 ההזמנה התקבלה במאפייה';return '🔔 הזמנה חדשה מהמערכת'}
+function beep(times=3){if(!audioOn||!audioCtx)return;for(let i=0;i<times;i++){setTimeout(()=>{const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();osc.frequency.value=880;gain.gain.value=.12;osc.connect(gain);gain.connect(audioCtx.destination);osc.start();setTimeout(()=>osc.stop(),180)},i*280)}}
+function enableSound(){audioCtx=new (window.AudioContext||window.webkitAudioContext)();audioOn=true;beep(1);toast('סאונד הופעל','כשנכנסת הזמנה חדשה הטאבלט יצפצף.')}
+async function auth(){if(sessionStorage.getItem('e10bakery')==='1')return true;let c=prompt('קוד כניסה למאפייה');if(c!==BAKERY_CODE){app.innerHTML='<section class="screen"><h1 class="top-title">אין גישה</h1><div class="card">קוד לא נכון</div></section>';return false}sessionStorage.setItem('e10bakery','1');return true}
+async function load(){if(!(await auth()))return;app.innerHTML='<section class="screen"><h1 class="top-title">טוען מאפייה...</h1></section>';await refreshData();render();startPolling()}
+async function refreshData(){let c=await db.from('customers').select('*').order('id',{ascending:true});if(c.error){throwError(c.error.message);return}customers=c.data||[];let d=todayLocal();let o=await db.from('bakery_orders').select('*').eq('order_date',d).maybeSingle();if(o.error){throwError(o.error.message+' — אם זו שגיאת טבלה, צריך להריץ את קובץ ה-SQL של המאפייה.');return}order=o.data;if(nowMin()>=780&&!order)await createOrder()}
+async function createOrder(){let row={order_date:todayLocal(),status:'נשלחה',buns_count:buns(),customers_count:delivery().length,active_count:active().length,skipped_count:skipped().length,unpaid_count:unpaid().length,message:message(),sent_at:new Date().toISOString(),updated_at:new Date().toISOString()};let r=await db.from('bakery_orders').upsert(row,{onConflict:'order_date'}).select('*').single();if(r.error){throwError(r.error.message);return}order=r.data;beep(5)}
+function throwError(msg){app.innerHTML=`<section class="screen"><h1 class="top-title">שגיאה</h1><div class="card">${safe(msg)}</div><button class="cta secondary" onclick="load()">נסה שוב</button></section>`}
+async function markReceived(){if(!order)await createOrder();let r=await db.from('bakery_orders').update({status:'התקבלה',received_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('order_date',todayLocal()).select('*').single();if(r.error)return toast('שגיאה',r.error.message);order=r.data;toast('אושר','המאפייה אישרה שקיבלה את ההזמנה.');render()}
+async function markReady(){if(!order)return toast('אין הזמנה','אין עדיין הזמנה להיום.');let r=await db.from('bakery_orders').update({status:'מוכנה',ready_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('order_date',todayLocal()).select('*').single();if(r.error)return toast('שגיאה',r.error.message);order=r.data;toast('ההזמנה מוכנה','המנהל יראה שההזמנה מוכנה.');render()}
+function fmt(t){if(!t)return '—';return new Date(t).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}
+function startPolling(){clearInterval(timer);timer=setInterval(async()=>{await refreshData();if(order&&order.status!==lastStatus&&order.status==='נשלחה')beep(4);lastStatus=order?.status||'';render()},30000)}
+function copyOrder(){navigator.clipboard?.writeText(order?.message||message());toast('הועתק','הודעת ההזמנה הועתקה.')}
+function render(){let before13=nowMin()<780,showMsg=order?.message||message();lastStatus=order?.status||lastStatus;app.innerHTML=`<section class="screen"><div class="pill"><span class="dot"></span>ערב 10 · מסך מאפייה</div><h1 class="bakery-title">מאפיית ערב 10</h1><div class="card"><div class="big-status">${statusLabel()}</div><div class="status-line">תאריך: ${todayLocal()}</div>${before13&&!order?`<p class="muted">ההזמנה תיכנס אוטומטית בשעה <b>13:00</b>.<br>נותרו ${countdownTo(780)}.</p>`:''}<div class="bakery-grid"><div class="bakery-stat"><span>לחמניות</span><strong>${order?.buns_count??buns()}</strong></div><div class="bakery-stat"><span>לקוחות למשלוח</span><strong>${order?.customers_count??delivery().length}</strong></div><div class="bakery-stat"><span>ביטלו היום</span><strong>${order?.skipped_count??skipped().length}</strong></div><div class="bakery-stat"><span>לא שילמו</span><strong>${order?.unpaid_count??unpaid().length}</strong></div></div><p class="muted">שעת שליחה: ${fmt(order?.sent_at)} · התקבלה: ${fmt(order?.received_at)} · מוכנה: ${fmt(order?.ready_at)}</p><div class="action-row"><button class="cta" onclick="markReceived()">אישור קבלת ההזמנה</button><button class="cta ready" onclick="markReady()">אישור ההזמנה מוכנה</button></div><button class="cta secondary" onclick="copyOrder()">העתק הזמנה</button><button class="cta secondary" onclick="refreshData().then(render)">רענן</button><button class="cta secondary" onclick="enableSound()">הפעל סאונד צפצוף</button></div><div class="card"><h2 style="color:var(--gold);margin-top:0">מה להכין</h2><div class="order-box">${safe(showMsg)}</div></div><div class="card"><h2 style="color:var(--gold);margin-top:0">לקוחות להזמנה</h2>${delivery().map(c=>`<div class="small-card" style="margin-top:10px"><b>${safe(c.name)}</b><br><span class="muted">${safe(c.subscription_id||'')} · ${safe(c.street||'')} ${safe(c.house||'')}</span></div>`).join('')||'<p class="muted">אין לקוחות למשלוח כרגע.</p>'}</div><div class="credit"><a href="https://share.google/HUoheAjuVnUKozsP8">מבית zagzagwebs</a></div><div class="muted-small">גרסה 1.0 · טאבלט מאפייה · רספונסיבי לנייד, טאבלט ומחשב</div></section>`}
+load();
+</script>
+</body>
+</html>
