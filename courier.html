@@ -11,18 +11,22 @@
   <link rel="stylesheet" href="./styles.css">
   <style>
     body{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-    input{user-select:text;-webkit-user-select:text}
+    input,textarea{user-select:text;-webkit-user-select:text}
     .credit{text-align:center;margin:22px 0 4px;font-size:12px}
     .credit a{color:var(--muted);text-decoration:none}
     .install-box{display:none;margin:14px 0}
     .install-box.show{display:block}
-    .toast{position:fixed;left:14px;right:14px;bottom:18px;z-index:9999;max-width:420px;margin:auto;background:rgba(18,14,7,.96);border:1px solid rgba(255,215,120,.32);border-radius:24px;padding:16px;box-shadow:0 24px 80px rgba(0,0,0,.55)}
-    .toast b{display:block;color:var(--gold);font-size:18px;margin-bottom:4px}
+    .toast,.modal{position:fixed;left:14px;right:14px;bottom:18px;z-index:9999;max-width:420px;margin:auto;background:rgba(18,14,7,.96);border:1px solid rgba(255,215,120,.32);border-radius:24px;padding:16px;box-shadow:0 24px 80px rgba(0,0,0,.55)}
+    .toast b,.modal b{display:block;color:var(--gold);font-size:18px;margin-bottom:4px}
+    .modal{top:50%;bottom:auto;transform:translateY(-50%)}
+    .reason-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+    .reason-grid button{border:1px solid rgba(255,215,120,.22);border-radius:16px;background:rgba(255,255,255,.06);color:var(--gold);font-weight:900;padding:12px 6px}
     .mini-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
     .mini-actions a,.mini-actions button{display:block;text-align:center;border-radius:18px;border:1px solid rgba(255,215,120,.22);background:rgba(255,255,255,.06);color:var(--gold);font-weight:900;text-decoration:none;padding:13px 6px;font-size:15px}
     .photo-box{margin-top:14px;border:1px dashed rgba(255,215,120,.35);border-radius:20px;padding:12px;text-align:center}
     .photo-box img{max-width:100%;border-radius:18px;margin-top:10px}
     .status-pill{display:inline-block;border-radius:999px;padding:8px 12px;border:1px solid rgba(255,215,120,.22);color:var(--muted);font-weight:900;margin-top:8px}
+    .problem-pill{color:#ff9b9b;border-color:rgba(255,70,70,.38)}
     .list-card{margin-top:18px}
     .delivery-row{display:flex;justify-content:space-between;gap:10px;align-items:center;border-top:1px solid rgba(255,215,120,.12);padding:12px 0}
     .delivery-row:first-child{border-top:0}
@@ -52,8 +56,10 @@ function phone(c){return digits(c.phone)}
 function statusKey(id){return 'e10_status_'+id}
 function photoKey(id){return 'e10_photo_'+id}
 function timeKey(id){return 'e10_time_'+id}
+function problemKey(id){return 'e10_problem_'+id}
 function getStatus(c){return localStorage.getItem(statusKey(c.id))||'ממתין'}
 function getTime(c){return localStorage.getItem(timeKey(c.id))||''}
+function getProblem(c){try{return JSON.parse(localStorage.getItem(problemKey(c.id))||'null')}catch(e){return null}}
 function save(){localStorage.setItem('e10_route_i',String(i))}
 function toast(t,s){ui.innerHTML=`<div class="toast"><b>${t}</b><p class="muted">${s||''}</p><button class="cta secondary" onclick="ui.innerHTML=''">סגור</button></div>`;setTimeout(()=>ui.innerHTML='',3000)}
 function copy(t,m){navigator.clipboard?.writeText(t);toast('הועתק',m||'')}
@@ -72,6 +78,7 @@ async function load(){
 }
 
 function deliveredCount(){return rows.filter(x=>getStatus(x)==='נמסר').length}
+function problemCount(){return rows.filter(x=>getStatus(x)==='בעיה').length}
 function current(){return rows[i%rows.length]}
 
 function done(status){
@@ -79,6 +86,7 @@ function done(status){
   const c=current();
   localStorage.setItem(statusKey(c.id),status);
   localStorage.setItem(timeKey(c.id),new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}));
+  if(status!=='בעיה') localStorage.removeItem(problemKey(c.id));
   if(status==='נמסר') next();
   else render();
 }
@@ -90,8 +98,29 @@ function reset(){
 }
 function clearStatuses(){
   if(!confirm('לאפס את כל סימוני השליח מהטלפון?'))return;
-  rows.forEach(c=>{localStorage.removeItem(statusKey(c.id));localStorage.removeItem(timeKey(c.id));localStorage.removeItem(photoKey(c.id))});
+  rows.forEach(c=>{localStorage.removeItem(statusKey(c.id));localStorage.removeItem(timeKey(c.id));localStorage.removeItem(photoKey(c.id));localStorage.removeItem(problemKey(c.id))});
   i=0;save();render();
+}
+
+function openProblemModal(){
+  const reasons=['🚪 אין מענה','📞 הלקוח לא עונה','🏠 כתובת שגויה','🚧 אין גישה לבניין','⏰ ביקש להגיע מאוחר יותר','✍️ אחר'];
+  ui.innerHTML=`<div class="modal"><b>דיווח בעיה</b><p class="muted">בחר סיבה לבעיה אצל הלקוח הנוכחי.</p><div class="reason-grid">${reasons.map(r=>`<button onclick="chooseProblem('${r.replace("'", "\\'")}')">${r}</button>`).join('')}</div><textarea id="problemNote" placeholder="הערה נוספת / אחר..." style="width:100%;min-height:80px;border-radius:16px;padding:12px;background:rgba(255,255,255,.06);color:white;border:1px solid rgba(255,215,120,.22)"></textarea><button class="cta secondary" onclick="ui.innerHTML=''">ביטול</button></div>`;
+}
+function chooseProblem(reason){
+  const c=current();
+  const note=document.getElementById('problemNote')?.value||'';
+  const time=new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  localStorage.setItem(statusKey(c.id),'בעיה');
+  localStorage.setItem(timeKey(c.id),time);
+  localStorage.setItem(problemKey(c.id),JSON.stringify({reason,note,time}));
+  ui.innerHTML='';
+  toast('בעיה נשמרה',reason+(note?' · '+note:''));
+  next();
+}
+function problemText(c){
+  const p=getProblem(c);
+  if(!p)return '';
+  return `<div class="small-card" style="margin-top:12px;border-color:rgba(255,70,70,.38)"><b style="color:#ff9b9b">🔴 בעיה: ${esc(p.reason)}</b><br><span class="muted">שעה: ${esc(p.time||'')}</span>${p.note?`<br><span class="muted">${esc(p.note)}</span>`:''}</div>`;
 }
 
 function takePhoto(){
@@ -135,7 +164,7 @@ function links(c){
   return `<div class="mini-actions"><a href="${waze}" target="_blank">Waze</a><a href="${maps}" target="_blank">Maps</a><a href="${tel}">חיוג</a><a href="${wa}" target="_blank">WhatsApp</a><button onclick="copy('${esc(addr(c))}','כתובת הועתקה')">העתק כתובת</button><button onclick="copy('${esc(c.entry_code||'אין')}','קוד כניסה הועתק')">העתק קוד</button></div>`;
 }
 function routeList(){
-  return `<div class="card list-card"><h2 style="color:var(--gold);margin-top:0">מסלול היום</h2>${rows.map((c,idx)=>`<div class="delivery-row"><div><b>${esc(c.name)}</b><br><span class="muted">${esc(c.subscription_id)} · ${esc(addr(c))}</span><br><span class="status-pill">${esc(getStatus(c))}${getTime(c)?' · '+esc(getTime(c)):''}</span></div><button onclick="i=${idx};save();render()">פתח</button></div>`).join('')}</div>`;
+  return `<div class="card list-card"><h2 style="color:var(--gold);margin-top:0">מסלול היום</h2>${rows.map((c,idx)=>{let p=getProblem(c);return `<div class="delivery-row"><div><b>${esc(c.name)}</b><br><span class="muted">${esc(c.subscription_id)} · ${esc(addr(c))}</span><br><span class="status-pill ${getStatus(c)==='בעיה'?'problem-pill':''}">${esc(getStatus(c))}${getTime(c)?' · '+esc(getTime(c)):''}</span>${p?`<br><span style="color:#ff9b9b;font-size:13px">${esc(p.reason)}</span>`:''}</div><button onclick="i=${idx};save();render()">פתח</button></div>`}).join('')}</div>`;
 }
 
 function render(){
@@ -144,8 +173,8 @@ function render(){
     showInstall();
     return;
   }
-  const c=current(),delivered=deliveredCount(),left=rows.length-delivered,st=getStatus(c);
-  app.innerHTML=`<section class="screen"><h1 class="top-title">מצב שליח</h1>${installBox()}<div class="small-card" style="margin-bottom:16px;font-weight:900">🚚 ${delivered} מתוך ${rows.length} נמסרו · נשארו ${left}</div><div class="card"><div class="badge">${esc(c.subscription_id)}</div><div class="courier-name">${esc(c.name)}</div><div class="courier-address">${esc(addr(c))}</div><span class="status-pill">סטטוס: ${esc(st)}${getTime(c)?' · '+esc(getTime(c)):''}</span><div class="divider"></div><p class="muted">קוד כניסה</p><h2>${esc(c.entry_code||'אין')}</h2><p class="muted">הערה לשליח</p><h2>${esc(c.delivery_note||'אין הערה')}</h2>${links(c)}${photoBox(c)}<div class="action-grid" style="margin-top:16px"><button class="cta" onclick="done('נמסר')">נמסר</button><button class="cta secondary" onclick="done('לא בבית')">לא בבית</button><button class="cta secondary" onclick="done('בעיה')">בעיה</button><button class="cta secondary" onclick="prev()">הקודם</button><button class="cta secondary" onclick="next()">הלקוח הבא</button><button class="cta secondary" onclick="load()">רענן מהשרת</button></div></div>${routeList()}<button class="cta secondary" onclick="reset()">התחל מסלול מהתחלה</button><button class="cta secondary" onclick="clearStatuses()">איפוס סימוני שליח</button><div class="credit"><a href="https://share.google/HUoheAjuVnUKozsP8">מבית zagzagwebs</a></div><div class="muted" style="font-size:12px;text-align:center;margin-top:8px">גרסה 1.1 · שליח מלא ללא אחסון תמונות</div></section>`;
+  const c=current(),delivered=deliveredCount(),problems=problemCount(),left=rows.length-delivered,st=getStatus(c);
+  app.innerHTML=`<section class="screen"><h1 class="top-title">מצב שליח</h1>${installBox()}<div class="small-card" style="margin-bottom:16px;font-weight:900">🚚 ${delivered} מתוך ${rows.length} נמסרו · נשארו ${left} · בעיות ${problems}</div><div class="card"><div class="badge">${esc(c.subscription_id)}</div><div class="courier-name">${esc(c.name)}</div><div class="courier-address">${esc(addr(c))}</div><span class="status-pill ${st==='בעיה'?'problem-pill':''}">סטטוס: ${esc(st)}${getTime(c)?' · '+esc(getTime(c)):''}</span>${problemText(c)}<div class="divider"></div><p class="muted">קוד כניסה</p><h2>${esc(c.entry_code||'אין')}</h2><p class="muted">הערה לשליח</p><h2>${esc(c.delivery_note||'אין הערה')}</h2>${links(c)}${photoBox(c)}<div class="action-grid" style="margin-top:16px"><button class="cta" onclick="done('נמסר')">נמסר</button><button class="cta secondary" onclick="done('לא בבית')">לא בבית</button><button class="cta secondary" onclick="openProblemModal()">בעיה</button><button class="cta secondary" onclick="prev()">הקודם</button><button class="cta secondary" onclick="next()">הלקוח הבא</button><button class="cta secondary" onclick="load()">רענן מהשרת</button></div></div>${routeList()}<button class="cta secondary" onclick="reset()">התחל מסלול מהתחלה</button><button class="cta secondary" onclick="clearStatuses()">איפוס סימוני שליח</button><div class="credit"><a href="https://share.google/HUoheAjuVnUKozsP8">מבית zagzagwebs</a></div><div class="muted" style="font-size:12px;text-align:center;margin-top:8px">גרסה 1.2 · בעיות ושליח מלא</div></section>`;
   showInstall();
 }
 load();
