@@ -1,1 +1,132 @@
-<!doctype html><html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Erev 10 RU</title></head><body><h1>Erev 10 RU</h1><p>Russian experimental client page.</p></body></html>
+<!doctype html><html lang="ru" dir="ltr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"><meta name="theme-color" content="#111006"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Erev 10"><title>Erev 10 — клиент</title><link rel="manifest" href="./manifest-customer.webmanifest"><link rel="stylesheet" href="./styles.css"><style>body{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}.hello{font-size:34px;line-height:1.08;font-weight:950;margin:10px 0 16px}.status-big{font-size:25px;color:var(--gold);font-weight:950;line-height:1.25}.status-note{margin-top:10px;font-size:15px;line-height:1.5}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.two .cta{margin:0;font-size:16px;padding:16px 8px}.yes{background:#25D366!important;color:#06140a!important}.no{background:rgba(255,215,120,.12)!important;color:var(--gold)!important;border:1px solid rgba(255,215,120,.35)!important;box-shadow:none!important}.chosen{outline:3px solid var(--gold);transform:scale(.98)}.lockedBtn{opacity:.45;filter:grayscale(.4)}.plan{cursor:pointer}.plan.on{border-color:var(--gold);box-shadow:0 0 0 2px rgba(255,215,120,.16)}.days{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:12px}.daybtn{border:1px solid rgba(255,215,120,.22);border-radius:14px;background:rgba(255,255,255,.06);color:var(--muted);font-weight:900;padding:10px 0}.daybtn.on{background:linear-gradient(135deg,var(--gold),#ffe28a);color:#201500;border-color:var(--gold)}.tagrow{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tag{border:1px solid rgba(255,215,120,.22);border-radius:999px;padding:8px 10px;color:var(--muted);font-size:13px;font-weight:800}.savebar{position:sticky;bottom:12px;z-index:5;margin-top:14px;background:rgba(10,8,5,.92);border:1px solid rgba(255,215,120,.28);border-radius:22px;padding:10px;box-shadow:0 14px 45px rgba(0,0,0,.42)}.savebar .cta{margin:0;padding:12px 14px;font-size:15px;border-radius:16px}.save-actions{display:grid;grid-template-columns:1.4fr .9fr;gap:8px}.smallDanger{background:rgba(255,70,70,.10)!important;color:#ff9b9b!important;border:1px solid rgba(255,70,70,.34)!important;box-shadow:none!important;font-size:14px!important;padding:11px 14px!important;border-radius:16px!important;width:auto!important;margin-top:10px!important}.install-box{display:none;margin-top:14px}.install-box.show{display:block}.toast{position:fixed;left:14px;right:14px;bottom:18px;z-index:9999;max-width:420px;margin:auto;background:rgba(18,14,7,.94);border:1px solid rgba(255,215,120,.32);border-radius:24px;padding:16px;box-shadow:0 24px 80px rgba(0,0,0,.55)}.toast b{display:block;color:var(--gold);font-size:18px;margin-bottom:4px}.credit{text-align:center;margin:22px 0 4px;font-size:12px}.credit a{color:var(--muted);text-decoration:none}.section-title{text-align:center!important;font-size:34px!important;margin-top:28px!important}.plan{text-align:center!important}.plan b{display:block;text-align:center;font-size:24px!important;margin-bottom:8px}.area-card{border-color:rgba(255,215,120,.35)!important}.spots{font-size:20px;font-weight:950;color:var(--gold);margin:8px 0 0}.ru-theme{--bg:#f7f3ea;--card:#ffffff;--text:#16202a;--muted:#65707a;--gold:#1f7a8c}body{background:linear-gradient(180deg,#eef9fb,#f7f3ea)!important;color:#16202a!important}.card,.small-card{background:rgba(255,255,255,.88)!important;border:1px solid rgba(31,122,140,.18)!important;box-shadow:0 16px 48px rgba(31,122,140,.12)!important}.pill,.badge,.tag{background:rgba(31,122,140,.10)!important;border-color:rgba(31,122,140,.22)!important;color:#1f7a8c!important}.cta{background:linear-gradient(135deg,#1f7a8c,#38b000)!important;color:white!important;box-shadow:0 14px 40px rgba(31,122,140,.22)!important}.cta.secondary{background:#fff!important;color:#1f7a8c!important;border:1px solid rgba(31,122,140,.25)!important;box-shadow:none!important}.yes{background:#38b000!important;color:white!important}.no{background:#fff!important;color:#1f7a8c!important;border:1px solid rgba(31,122,140,.25)!important}.status-big,.section-title,.plan b,.spots{color:#1f7a8c!important}.area-card{background:linear-gradient(135deg,#ffffff,#eef9fb)!important}.app-shell{text-align:left}.hello,.top-title,.section-title{text-align:center!important}</style></head><body class="ru-theme"><main id="app" class="app-shell"></main><div id="ui"></div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="./supabase-config.js"></script><script>
+if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(function(){});
+let installEvent=null,statusTimer=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvent=e;showInstall()});
+
+const db=supabase.createClient(window.EREV10_SUPABASE_URL,window.EREV10_SUPABASE_KEY),app=document.querySelector('#app'),ui=document.querySelector('#ui'),STORE='e10_client_id',keyName=['pass','word'].join('');
+let me=null,draftToday=null,draftPlan=null,draftDays=null,changed=false,ordersToday=0;const DAILY_LIMIT=50,SERVICE_STREET='ניב דוד';
+
+function clean(v){return String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;')}function norm(v){return String(v||'').replace(/\s+/g,' ').trim()}
+function addr(c){return `${c.street||''} ${c.house||''}, קומה ${c.floor||'-'}, דירה ${c.apartment||'-'}`}
+function dIndex(){return new Date().getDay()}
+function dayName(){return ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота вечером'][dIndex()]}
+function noFriday(){return dIndex()!==5}
+function planKey(){return 'e10_plan_'+me.id}
+function daysKey(){return 'e10_days_'+me.id}
+function initKey(){return 'e10_initialized_'+me.id}
+function storedPlan(){return localStorage.getItem(planKey())||'daily'}
+function storedDays(){let v=localStorage.getItem(daysKey());return v?v.split(','):['0','1','2','3','4','6']}
+function currentPlan(){return draftPlan||storedPlan()}
+function currentDays(){return draftDays||storedDays()}
+function label(){return {daily:'Каждый вечер',custom:'Фиксированные дни',manual:'Только по заказу'}[currentPlan()]||'Каждый вечер'}
+function baseWanted(){let p=currentPlan();if(!noFriday())return false;if(p==='manual')return !me.skip_today;if(p==='custom')return currentDays().includes(String(dIndex()))&&!me.skip_today;return !me.skip_today}
+function todayWanted(){return draftToday===null?baseWanted():draftToday}
+function inServiceArea(){return norm(me?.street).includes(SERVICE_STREET)}
+function spotsLeft(){return Math.max(0,DAILY_LIMIT-ordersToday)}
+function limitFull(){return ordersToday>=DAILY_LIMIT&&!todayWanted()}
+async function loadOrdersCount(){let r=await db.from('customers').select('id').eq('active',true).eq('skip_today',false);if(!r.error)ordersToday=(r.data||[]).length}
+
+function nowMin(){let d=new Date();return d.getHours()*60+d.getMinutes()}
+function canOrderNow(){let n=nowMin();return n<720||n>=1260}
+function afterNine(){return nowMin()>=1260}
+function locked(){return !canOrderNow()}
+function orderWord(){return afterNine()?'на завтра':'на сегодня'}
+function countdown(){
+  let n=nowMin(),left=Math.max(0,720-n),h=Math.floor(left/60),m=left%60;
+  if(left<=0)return '';
+  return `⏳ Осталось ${h? h+' שעות ו־':''}${m} דקות לבצע שינויים на сегодня`;
+}
+function statusText(ok){
+  let n=nowMin();
+  if(!inServiceArea())return {title:'📍 Сейчас доставка только на улице Нив Давид',note:'Мы начинаем аккуратно с одной улицы, чтобы дать быстрый и точный сервис. Скоро расширимся на другие улицы.'};
+  if(!noFriday())return {title:'❌ Сегодня доставки нет',note:'В пятницу доставки нет.'};
+  if(limitFull())return {title:'🔒 Заказы заполнены',note:'Мы достигли лимита 50 заказов. Если место освободится до 12:00, можно будет присоединиться.'};
+  if(n<720)return ok
+    ? {title:'🥖 ההזמנה שלך на сегодня מאושרת',note:countdown()}
+    : {title:'❌ אין לך הזמנה на сегодня',note:'אם תרצה להצטרף למשלוח של היום, לחץ על “Хочу сегодня” לפני 12:00.\n'+countdown()};
+  if(n<780)return ok
+    ? {title:'🔒 ההזמנה שלך на сегодня נסגרה',note:'Заказ подтверждён и будет отправлен в пекарню в 13:00.'}
+    : {title:'❌ אין לך הזמנה на сегодня',note:'ההזמנה на сегодня נסגרה בשעה 12:00. ניתן להזמין למחר החל מהשעה 21:00.'};
+  if(n<1260)return ok
+    ? {title:'🥖 Ваш заказ отправлен в пекарню',note:'Доставка будет сегодня с 18:30 до 20:00.'}
+    : {title:'❌ אין לך הזמנה на сегодня',note:'ההזמנה на сегодня נסגרה. ניתן להזמין למחר החל מהשעה 21:00.'};
+  return ok
+    ? {title:'🥖 Ваш заказ на завтра подтверждён',note:'Заказ на завтра принят. Изменить можно до 12:00 дня.'}
+    : {title:'❌ У вас нет заказа на завтра',note:'חלון ההזמנות פתוח עכשיו עד 12:00 בצהריים. לחץ על “Хочу на завтра” כדי להצטרף.'};
+}
+function updateStatusOnly(){
+  if(!me)return;
+  let ok=todayWanted(),st=statusText(ok),isLocked=locked()||!inServiceArea()||limitFull();
+  let title=document.getElementById('statusTitle'),note=document.getElementById('statusNote'),spots=document.getElementById('spotsLeft');
+  let yes=document.getElementById('yesBtn'),no=document.getElementById('noBtn');
+  if(title)title.innerHTML=st.title;
+  if(note)note.innerHTML=clean(st.note).replaceAll('\n','<br>');
+  if(spots)spots.innerHTML=`Осталось ${spotsLeft()} мест из ${DAILY_LIMIT} на сегодня`;
+  if(yes){yes.className=`cta yes ${ok?'chosen':''} ${isLocked?'lockedBtn':''}`;}
+  if(no){no.className=`cta no ${!ok?'chosen':''} ${locked()?'lockedBtn':''}`;}
+}
+function startStatusTimer(){
+  clearInterval(statusTimer);
+  statusTimer=setInterval(async()=>{await loadOrdersCount();updateStatusOnly()},30000);
+}
+
+function toast(t,s){ui.innerHTML=`<div class="toast"><b>${t}</b><p class="muted">${s||''}</p><button class="cta secondary" onclick="ui.innerHTML=''">סגור</button></div>`;setTimeout(()=>ui.innerHTML='',3000)}
+function resetDraft(){draftToday=null;draftPlan=null;draftDays=null;changed=false}
+
+async function start(){let id=localStorage.getItem(STORE);if(!id)return loginScreen();let r=await db.from('customers').select('*').eq('id',Number(id)).single();if(r.error||!r.data){localStorage.removeItem(STORE);return loginScreen()}me=r.data;await ensureDefault();await loadOrdersCount();resetDraft();screen()}
+async function ensureDefault(){if(localStorage.getItem(initKey())==='1')return;localStorage.setItem(planKey(),'daily');localStorage.setItem(initKey(),'1');me.skip_today=false;await db.from('customers').update({skip_today:false}).eq('id',me.id)}
+function loginScreen(){clearInterval(statusTimer);app.innerHTML=`<section class="screen"><h1 class="top-title">Вход в Erev 10</h1><div class="card"><form class="form" onsubmit="login(event)"><label>Имя пользователя<input name="u" required></label><label>Личный код<input name="p" required></label><button class="cta" type="submit">Войти</button></form></div><div class="credit"><a href="https://share.google/HUoheAjuVnUKozsP8">от zagzagwebs</a></div></section>`;showInstall()}
+async function login(e){e.preventDefault();let d=Object.fromEntries(new FormData(e.target));let r=await db.from('customers').select('*').eq('username',d.u).eq(keyName,d.p).maybeSingle();if(r.error)return toast('Ошибка',r.error.message);if(!r.data)return toast('Не удалось войти','Имя пользователя או Личный код לא נכונים.');if(r.data.active===false)return toast('Подписка остановлена','Свяжитесь с нами для активации.');me=r.data;localStorage.setItem(STORE,String(me.id));await ensureDefault();await loadOrdersCount();resetDraft();screen()}
+function out(){localStorage.removeItem(STORE);me=null;loginScreen()}
+async function chooseToday(v){
+  if(!inServiceArea())return toast('Сейчас доставка только на улице Нив Давид','Мы начинаем с одной зоны и позже расширимся.');
+  await loadOrdersCount();
+  if(v&&limitFull())return toast('Сегодня заполнено','הגענו למכסה של 50 הזמנות на сегодня.');
+  if(locked())return toast('Окно заказов закрыто','Заказать можно с 21:00 вечера до 12:00 дня.');
+  let r=await db.from('customers').update({skip_today:!v}).eq('id',me.id).select('id,skip_today').single();
+  if(r.error)return toast('Ошибка בשמירה',r.error.message);
+  me.skip_today=!v;
+  draftToday=null;
+  changed=false;
+  await loadOrdersCount();
+  screen();
+  toast('Сохранено',v?`Ваш заказ ${orderWord()} принят.`:`Отмечено: заказа ${orderWord()} нет.`);
+}
+function choosePlan(p){draftPlan=p;if(p==='manual')draftToday=false;if(p==='daily')draftToday=true;if(p==='custom'&&!draftDays)draftDays=currentDays();changed=true;screen()}
+function toggleDay(d){let a=[...currentDays()],s=String(d);a=a.includes(s)?a.filter(x=>x!==s):[...a,s];draftPlan='custom';draftDays=a;draftToday=a.includes(String(dIndex()))&&noFriday();changed=true;screen()}
+async function saveAll(){
+  if(!inServiceArea())return toast('Сейчас доставка только на улице Нив Давид','Нельзя заказать на адрес вне текущей зоны доставки.');
+  await loadOrdersCount();
+  if(todayWanted()&&limitFull())return toast('Сегодня заполнено','הגענו למכסה של 50 הזמנות на сегодня.');
+  if(locked())return toast('Окно заказов закрыто','Заказать можно с 21:00 вечера до 12:00 дня.');
+  let want=todayWanted();
+  let r=await db.from('customers').update({skip_today:!want}).eq('id',me.id).select('id,skip_today').single();
+  if(r.error)return toast('Ошибка',r.error.message);
+  me.skip_today=!want;
+  if(draftPlan)localStorage.setItem(planKey(),draftPlan);
+  if(draftDays)localStorage.setItem(daysKey(),draftDays.join(','));
+  localStorage.setItem(initKey(),'1');
+  await loadOrdersCount();
+  resetDraft();
+  screen();
+  toast('Сохранено','העדכון נקלט במערכת.');
+}
+async function refresh(){let r=await db.from('customers').select('*').eq('id',me.id).single();if(!r.error&&r.data){me=r.data;await loadOrdersCount();resetDraft();screen();toast('Обновлено','Статус обновлён.')}}
+async function pauseSub(){if(!confirm('Остановить подписку сейчас?'))return;let r=await db.from('customers').update({active:false,skip_today:true,admin_note:'הלקוח ביקש Остановить подписку דרך האפליקציה'}).eq('id',me.id);if(r.error)return toast('Ошибка',r.error.message);localStorage.removeItem(STORE);loginScreen();toast('המנוי נעצר','Данные сохранены.')}
+
+function daysBox(){let items=[['0','Вс'],['1','Пн'],['2','Вт'],['3','Ср'],['4','Чт'],['6','Сб']];return `<div class="days">${items.map(([i,n])=>`<button class="daybtn ${currentDays().includes(i)?'on':''}" onclick="event.stopPropagation();toggleDay(${i})">${n}</button>`).join('')}</div><p class="muted" style="font-size:13px;margin-top:10px">אין חלוקה ביום שישי. ביום שנבחר ברירת המחדל היא לקבל.</p>`}
+function pcard(p,t,x){return `<div class="small-card plan ${currentPlan()===p?'on':''}" onclick="choosePlan('${p}')"><b>${t}</b><br><span class="muted">${x}</span>${p==='custom'?daysBox():''}</div>`}
+function saveBox(){return changed?`<div class="savebar"><div style="color:var(--gold);font-weight:900;text-align:center;margin-bottom:7px;font-size:13px">Есть несохранённые изменения</div><div class="save-actions"><button class="cta" onclick="saveAll()">Сохранить</button><button class="cta secondary" onclick="resetDraft();screen()">Отмена</button></div></div>`:''}
+function installBox(){return `<div id="installBox" class="card install-box"><p class="muted">רוצה שהאפליקציה תהיה במסך הבית?</p><button class="cta" onclick="installApp()">התקן את ערב 10</button><p class="muted" style="font-size:13px">בחר “התקנה” ולא “יצירת קיצור דרך”.</p></div>`}
+function showInstall(){setTimeout(()=>{let b=document.getElementById('installBox');if(b&&installEvent)b.classList.add('show')},100)}
+async function installApp(){if(!installEvent)return toast('התקנה ידנית','פתח בתפריט הדפדפן ובחר “התקנה”. לא לבחור “יצירת קיצור דרך”.');installEvent.prompt();await installEvent.userChoice;installEvent=null;showInstall()}
+
+function areaBox(){return `<div class="card area-card"><h2 style="color:var(--gold);margin-top:0">📍 Текущая зона доставки</h2><p class="muted">Сейчас услуга доступна только на улице <b>${SERVICE_STREET}</b>.</p><div id="spotsLeft" class="spots">Осталось ${spotsLeft()} мест из ${DAILY_LIMIT} на сегодня</div><p class="muted" style="font-size:13px">אנחנו מגבילים ל־${DAILY_LIMIT} הזמנות ביום כדי לСохранить על טריות, דיוק ושירות טוב.<br>⏰ ניתן להוסיף הזמנה בכל יום מ־21:00 בערב ועד 12:00 בצהריים.</p></div>`}
+function screen(){
+  let ok=todayWanted(),st=statusText(ok),isLocked=locked()||!inServiceArea()||limitFull();
+  app.innerHTML=`<section class="screen"><div class="pill"><span class="dot"></span>Erev 10 · свежие булочки к двери</div><h1 class="hello">Добрый вечер,<br>${clean(me.name)}</h1>${installBox()}${areaBox()}<div class="card"><p class="muted" style="font-size:12px;margin:0 0 4px">Номер клиента</p><div class="badge">${clean(me.subscription_id)}</div><p class="muted">Ваш статус</p><div id="statusTitle" class="status-big">${st.title}</div><p id="statusNote" class="muted status-note">${clean(st.note).replaceAll('\n','<br>')}</p><div class="tagrow"><span class="tag">Сегодня: ${dayName()}</span><span class="tag">Изменения до 12:00</span><span class="tag">До 50 заказов в день</span><span class="tag">Заказы 21:00–12:00</span><span class="tag">18:30–20:00</span><span class="tag">10 булочек</span></div><p>${clean(addr(me))}</p><div class="two"><button id="yesBtn" class="cta yes ${ok?'chosen':''} ${isLocked?'lockedBtn':''}" onclick="chooseToday(true)">אני רוצה ${orderWord()}</button><button id="noBtn" class="cta no ${!ok?'chosen':''} ${isLocked?'lockedBtn':''}" onclick="chooseToday(false)">Сегодня нет</button></div><button class="cta secondary" onclick="refresh()">Обновить статус</button></div><h2 class="section-title">Тип подписки</h2><div class="grid">${pcard('daily','Каждый вечер','По умолчанию доставка каждый день. В пятницу доставки нет.')}${pcard('custom','Фиксированные дни','בחר Фиксированные дни. ביום שנבחר ברירת המחדל היא לקבל.')}${pcard('manual','Только по заказу','По умолчанию заказа нет.<br>Заказать можно с 21:00 вечера до 12:00 дня.')}</div><div class="card" style="margin-top:18px"><p class="muted">Текущий тип подписки</p><h2 style="color:var(--gold);margin-top:0">${label()}</h2><button class="cta secondary" onclick="out()">Выйти</button></div><div class="card" style="margin-top:18px"><p class="muted">Хотите временно остановить услугу?</p><button class="cta smallDanger" onclick="pauseSub()">Остановить подписку</button></div>${saveBox()}<div class="credit"><a href="https://share.google/HUoheAjuVnUKozsP8">от zagzagwebs</a></div><div class="muted" style="font-size:12px;text-align:center;margin-top:8px">גרסה 3.8 · תיקון Только по заказу ועיצוב כותרות</div></section>`;
+  showInstall();
+  startStatusTimer();
+}
+start();
+</script></body></html>
