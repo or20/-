@@ -1,4 +1,4 @@
-const CACHE_NAME = "erev-10-pwa-v9";
+const CACHE_NAME = "erev-10-pwa-v10";
 
 const ASSETS = [
   "./",
@@ -11,17 +11,23 @@ const ASSETS = [
   "./bakery.html",
   "./styles.css",
   "./supabase-config.js",
+
   "./manifest-manager.webmanifest",
   "./manifest-customer.webmanifest",
   "./manifest-courier.webmanifest",
+  "./manifest-bakery.webmanifest",
+
   "./icons/icon-192.svg",
   "./icons/icon-512.svg"
 ];
 
 self.addEventListener("install", event => {
   self.skipWaiting();
+
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(ASSETS);
+    })
   );
 });
 
@@ -46,9 +52,11 @@ self.addEventListener("fetch", event => {
     fetch(event.request)
       .then(response => {
         const copy = response.clone();
+
         caches.open(CACHE_NAME).then(cache => {
           cache.put(event.request, copy);
         });
+
         return response;
       })
       .catch(() =>
